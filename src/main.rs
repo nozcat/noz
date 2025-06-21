@@ -1,4 +1,4 @@
-use libc::{MAP_ANON, MAP_JIT, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, mmap, mprotect};
+use libc::{MAP_ANON, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, mmap, mprotect};
 use std::mem;
 
 fn main() {
@@ -25,11 +25,16 @@ fn main() {
         // 1. Allocate memory.
         // We ask for memory that is readable and writable.
         // On Apple Silicon, we need MAP_JIT to be able to make it executable later.
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let flags = MAP_ANON | MAP_PRIVATE | libc::MAP_JIT;
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        let flags = MAP_ANON | MAP_PRIVATE;
+
         let addr = mmap(
             std::ptr::null_mut(),
             mem_size,
             PROT_READ | PROT_WRITE,
-            MAP_ANON | MAP_PRIVATE | MAP_JIT,
+            flags,
             -1,
             0,
         );
