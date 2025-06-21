@@ -66,3 +66,13 @@ fn main() {
         // For this simple example, we'll let the OS clean it up on process exit.
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_main() {
+        main();
+    }
+}
