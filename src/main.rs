@@ -2,6 +2,9 @@ use libc::{MAP_ANON, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, mmap, mprote
 use std::mem;
 
 fn main() {
+    #[cfg(not(target_arch = "aarch64"))]
+    compile_error!("This code only supports aarch64 targets.");
+
     // This is ARM64 assembly for a function that takes an i32 and returns it.
     // fn(num: i32) -> i32 { return num; }
     //
