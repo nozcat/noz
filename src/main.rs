@@ -1,4 +1,4 @@
-use libc::{MAP_ANON, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, mmap, mprotect};
+use libc::{MAP_ANON, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, mmap, mprotect, munmap};
 use std::mem;
 
 fn main() {
@@ -14,13 +14,7 @@ fn main() {
     // ldr w0, [sp, #12]
     // add sp, sp, #16
     // ret
-    let code = [
-        0xD10043FFu32,
-        0xB9000FE0u32,
-        0xB9400FE0u32,
-        0x910043FFu32,
-        0xD65F03C0u32,
-    ];
+    let code = [0xD10043FF, 0xB9000FE0, 0xB9400FE0, 0x910043FF, 0xD65F03C0];
 
     let mem_size = code.len() * mem::size_of::<u32>();
 
@@ -65,8 +59,11 @@ fn main() {
 
         println!("Called JIT function with {} and got {}", input, output);
 
-        // In a real application, you would also need to unmap the memory with `munmap`.
-        // For this simple example, we'll let the OS clean it up on process exit.
+        // 6. Unmap the memory.
+        let result = munmap(addr, mem_size);
+        if result != 0 {
+            panic!("munmap failed");
+        }
     }
 }
 
