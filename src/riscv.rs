@@ -16,6 +16,17 @@ pub enum Error {
     OutOfGas,
 }
 
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::InvalidInstruction => write!(f, "invalid or unsupported instruction"),
+            Error::OutOfGas => write!(f, "out of gas"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
 /// Configuration for the RISC-V virtual machine.
 pub struct Config {
     /// A function pointer to a syscall handler.
