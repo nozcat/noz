@@ -12,6 +12,8 @@ pub struct Riscv {
 pub enum Error {
     /// The VM encountered an instruction that is not valid or not supported.
     InvalidInstruction,
+    /// The VM ran out of gas.
+    OutOfGas,
 }
 
 /// Configuration for the RISC-V virtual machine.
@@ -128,8 +130,7 @@ impl Riscv {
     ///
     /// # Errors
     ///
-    /// Returns `Error::InvalidInstruction` if an unknown or malformed
-    /// instruction is encountered.
+    /// Returns `Error::OutOfGas` if gas runs out.
     pub fn run(&mut self) -> Result<(), Error> {
         unimplemented!();
     }
