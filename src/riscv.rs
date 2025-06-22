@@ -83,36 +83,13 @@ impl Riscv {
         unimplemented!();
     }
 
-    /// Returns a slice to the native (JIT-compiled) code.
-    pub fn get_native_code(&self) -> &[u8] {
-        unimplemented!();
-    }
-
     /// Loads pre-compiled native code into the VM.
     pub fn set_native_code(&mut self, _code: &[u8]) {
         unimplemented!();
     }
 
-    /// Sets the value of a specific general-purpose register.
-    ///
-    /// # Arguments
-    ///
-    /// * `_index` - The index of the register (0-31).
-    /// * `_value` - The value to write to the register.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `_index` is greater than 31.
-    pub fn set_reg(&mut self, _index: u32, _value: u32) {
-        unimplemented!();
-    }
-
-    /// Sets the program counter (PC) to a specific address.
-    ///
-    /// # Arguments
-    ///
-    /// * `_value` - The new value for the program counter.
-    pub fn set_pc(&mut self, _value: u32) {
+    /// Returns a slice to the native (JIT-compiled) code.
+    pub fn native_code(&self) -> &[u8] {
         unimplemented!();
     }
 
@@ -130,19 +107,34 @@ impl Riscv {
     }
 
     /// Returns the remaining amount of gas.
-    pub fn get_gas(&self) -> u64 {
+    pub fn gas(&self) -> u64 {
         *self.gas
     }
 
-    /// Executes the loaded RISC-V code.
+    /// Returns a mutable slice of the entire VM memory.
+    pub fn memory(&mut self) -> &mut [u8] {
+        &mut self._memory
+    }
+
+    /// Executes the loaded RISC-V function.
     ///
-    /// Execution starts from the current program counter and continues until
-    /// it completes, an error occurs, or gas runs out.
+    /// Execution starts from the given program counter `pc` with a single 32-bit
+    /// argument `arg`, and continues until it completes, an error occurs, or
+    /// gas runs out.
+    ///
+    /// # Arguments
+    ///
+    /// * `_pc` - The program counter to start execution from.
+    /// * `_arg` - A single 32-bit argument.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `u32` return value upon successful completion.
     ///
     /// # Errors
     ///
     /// - `Error::OutOfGas` if gas runs out.
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub fn call(&mut self, _pc: u32, _arg: u32) -> Result<u32, Error> {
         unimplemented!();
     }
 }
