@@ -1,5 +1,6 @@
 //! RISC-V 32-bit IM virtual machine.
 
+use clear_cache::clear_cache;
 use libc::{
     MAP_ANON, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, c_void, mmap, mprotect, munmap,
 };
@@ -166,6 +167,9 @@ impl Riscv {
             if result != 0 {
                 return Err(Error::MemoryProtectionFailed);
             }
+
+            // Clear the instruction cache.
+            clear_cache(self.native_code_addr, self.native_code_addr.add(code.len()));
         }
 
         self.native_code_size = code.len();
