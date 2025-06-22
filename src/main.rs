@@ -1,12 +1,25 @@
-use libc::{MAP_ANON, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, mmap, mprotect, munmap};
-use std::mem;
+use log::info;
+use noz::riscv::{Config, Riscv};
 
 fn main() {
-    #[cfg(not(target_arch = "aarch64"))]
-    compile_error!("This code only supports aarch64 targets.");
+    dotenv::dotenv().ok();
+    env_logger::init();
 
-    // This is ARM64 assembly for a function that takes an i32 and returns it.
-    // fn(num: i32) -> i32 { return num; }
+    let syscall = |args: &[u32], context: u64| {
+        info!("syscall: {:?}, {:?}", args, context);
+        0
+    };
+
+    let mut riscv = Riscv::new(Config {
+        syscall,
+        context: 0,
+        max_memory: 1024 * 1024,
+        max_code_size: 1024,
+    })
+    .unwrap();
+
+    // This is ARM64 assembly for a function that takes a u32 and returns it.
+    // fn(num: u32) -> u32 { return num; }
     //
     // You can get this from a compiler explorer.
     // sub sp, sp, #16
@@ -14,57 +27,18 @@ fn main() {
     // ldr w0, [sp, #12]
     // add sp, sp, #16
     // ret
-    let code = [0xD10043FF, 0xB9000FE0, 0xB9400FE0, 0x910043FF, 0xD65F03C0];
+    let mut code = vec![];
+    code.extend(0xD10043FF_u32.to_le_bytes());
+    code.extend(0xB9000FE0_u32.to_le_bytes());
+    code.extend(0xB9400FE0_u32.to_le_bytes());
+    code.extend(0x910043FF_u32.to_le_bytes());
+    code.extend(0xD65F03C0_u32.to_le_bytes());
 
-    let mem_size = code.len() * mem::size_of::<u32>();
+    riscv.set_native_code(&code).unwrap();
 
-    unsafe {
-        // 1. Allocate memory.
-        // We ask for memory that is readable and writable.
-        // On Apple Silicon, we need MAP_JIT to be able to make it executable later.
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        let flags = MAP_ANON | MAP_PRIVATE | libc::MAP_JIT;
-        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        let flags = MAP_ANON | MAP_PRIVATE;
+    let output = riscv.call(0, 42).unwrap();
 
-        let addr = mmap(
-            std::ptr::null_mut(),
-            mem_size,
-            PROT_READ | PROT_WRITE,
-            flags,
-            -1,
-            0,
-        );
-
-        if addr == libc::MAP_FAILED {
-            panic!("mmap failed");
-        }
-
-        // 2. Write assembly to the memory.
-        std::ptr::copy_nonoverlapping(code.as_ptr(), addr as *mut u32, code.len());
-
-        // 3. Change memory permissions to read-only and executable.
-        // This is important for security (W^X).
-        let result = mprotect(addr, mem_size, PROT_READ | PROT_EXEC);
-        if result != 0 {
-            panic!("mprotect failed");
-        }
-
-        // 4. Cast the memory address to a function pointer.
-        let func: extern "C" fn(i32) -> i32 = mem::transmute(addr);
-
-        // 5. Call the function!
-        let input = 42;
-        let output = func(input);
-
-        println!("Called JIT function with {} and got {}", input, output);
-
-        // 6. Unmap the memory.
-        let result = munmap(addr, mem_size);
-        if result != 0 {
-            panic!("munmap failed");
-        }
-    }
+    info!("output: {}", output);
 }
 
 #[cfg(test)]
