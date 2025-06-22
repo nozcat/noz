@@ -78,7 +78,7 @@ impl Riscv {
     ///
     /// # Errors
     ///
-    /// Returns an error if the code is invalid or cannot be loaded.
+    /// - `Error::InvalidInstruction` if the code is invalid.
     pub fn set_riscv_code(&mut self, _code: &[u8]) -> Result<(), Error> {
         unimplemented!();
     }
@@ -141,7 +141,7 @@ impl Riscv {
     ///
     /// # Errors
     ///
-    /// Returns `Error::OutOfGas` if gas runs out.
+    /// - `Error::OutOfGas` if gas runs out.
     pub fn run(&mut self) -> Result<(), Error> {
         unimplemented!();
     }
