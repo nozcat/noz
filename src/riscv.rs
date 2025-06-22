@@ -173,7 +173,7 @@ impl Riscv {
 
             // Clear the instruction cache.
             let result = clear_cache(self.native_code_addr, self.native_code_addr.add(code.len()));
-            if result != true {
+            if !result {
                 return Err(Error::ClearCacheFailed);
             }
         }
