@@ -22,6 +22,8 @@ pub struct Riscv {
 /// Error type for RISC-V virtual machine operations.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Error {
+    /// The VM failed to clear the instruction cache.
+    ClearCacheFailed,
     /// The code is too large.
     InvalidCodeSize,
     /// The VM encountered an instruction that is not valid or not supported.
@@ -37,6 +39,7 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::ClearCacheFailed => write!(f, "clear cache failed"),
             Error::InvalidCodeSize => write!(f, "invalid code size"),
             Error::InvalidInstruction => write!(f, "invalid or unsupported instruction"),
             Error::MemoryAllocationFailed => write!(f, "memory allocation failed"),
@@ -169,7 +172,9 @@ impl Riscv {
             }
 
             // Clear the instruction cache.
-            clear_cache(self.native_code_addr, self.native_code_addr.add(code.len()));
+            if !clear_cache(self.native_code_addr, self.native_code_addr.add(code.len())) {
+                return Err(Error::ClearCacheFailed);
+            }
         }
 
         self.native_code_size = code.len();
