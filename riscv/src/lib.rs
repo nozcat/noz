@@ -1,3 +1,7 @@
+mod config;
+mod error;
 mod riscv;
 
-pub use riscv::{Config, Riscv};
+pub use config::Config;
+pub use error::Error;
+pub use riscv::Riscv;

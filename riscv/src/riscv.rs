@@ -1,14 +1,12 @@
 //! RISC-V 32-bit IM virtual machine.
 
+use crate::{config::Config, error::Error};
 use clear_cache::clear_cache;
 use libc::{
     MAP_ANON, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, c_void, mmap, mprotect, munmap,
 };
 use log::error;
 use std::mem;
-
-/// The multiplier for the max native code size over the riscv code size.
-const NATIVE_CODE_MULTIPLIER: usize = 4;
 
 /// Virtual machine for RISC-V 32-bit IM.
 pub struct Riscv {
@@ -17,61 +15,6 @@ pub struct Riscv {
     native_code_addr: *mut c_void,
     native_code_size: usize,
     gas: Box<u64>,
-}
-
-/// Error type for RISC-V virtual machine operations.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Error {
-    /// The VM failed to clear the instruction cache.
-    ClearCacheFailed,
-    /// The code is too large.
-    InvalidCodeSize,
-    /// The VM encountered an instruction that is not valid or not supported.
-    InvalidInstruction,
-    /// The VM failed to allocate memory.
-    MemoryAllocationFailed,
-    /// The VM failed to change memory permissions.
-    MemoryProtectionFailed,
-    /// The VM ran out of gas.
-    OutOfGas,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::ClearCacheFailed => write!(f, "clear cache failed"),
-            Error::InvalidCodeSize => write!(f, "invalid code size"),
-            Error::InvalidInstruction => write!(f, "invalid or unsupported instruction"),
-            Error::MemoryAllocationFailed => write!(f, "memory allocation failed"),
-            Error::MemoryProtectionFailed => write!(f, "memory protection failed"),
-            Error::OutOfGas => write!(f, "out of gas"),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
-/// Configuration for the RISC-V virtual machine.
-pub struct Config {
-    /// A function pointer to a syscall handler.
-    ///
-    /// The VM will call this function when an `ecall` instruction is executed.
-    /// The first argument is a slice of `u32` values from registers `a0-a7`.
-    /// The second argument is a user-defined context value.
-    /// The function should return a `u32` value to be placed in register `a0`.
-    pub syscall: fn(args: &[u32], context: u64) -> u32,
-    /// A user-defined value passed to the syscall handler.
-    pub context: u64,
-    /// The maximum amount of memory available to the VM, in bytes.
-    pub max_memory: u32,
-    /// The maximum size of riscv code in bytes.
-    pub max_code_size: usize,
-}
-
-impl Config {
-    pub fn max_native_code_size(&self) -> usize {
-        self.max_code_size * NATIVE_CODE_MULTIPLIER
-    }
 }
 
 impl Riscv {
