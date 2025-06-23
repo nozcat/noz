@@ -1,15 +1,10 @@
-[package]
-name = "noz"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = ["node", "riscv"]
+
+[workspace.dependencies]
+log = "0.4.27"
 
 [profile.release]
 lto = true
 codegen-units = 1
-
-[dependencies]
-clear-cache = "0.1.2"
-dotenv = "0.15.0"
-env_logger = "0.11.8"
-libc = "0.2.174"
-log = "0.4.27"

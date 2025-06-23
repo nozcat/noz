@@ -1,5 +1,5 @@
 use log::info;
-use noz::riscv::{Config, Riscv};
+use riscv::{Config, Riscv};
 
 fn main() {
     dotenv::dotenv().ok();
