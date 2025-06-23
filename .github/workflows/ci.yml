@@ -26,7 +26,7 @@ jobs:
     - name: Test
       run: cargo test --verbose
     - name: Coverage
-      run: cargo tarpaulin --verbose
+      run: cargo tarpaulin --verbose --out Xml
     - name: Upload coverage
       uses: codecov/codecov-action@v5
       with:
