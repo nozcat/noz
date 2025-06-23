@@ -155,14 +155,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
-name = "noz"
+name = "node"
 version = "0.1.0"
 dependencies = [
- "clear-cache",
  "dotenv",
  "env_logger",
- "libc",
  "log",
+ "riscv",
 ]
 
 [[package]]
@@ -232,6 +231,15 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "riscv"
+version = "0.1.0"
+dependencies = [
+ "clear-cache",
+ "libc",
+ "log",
+]
 
 [[package]]
 name = "serde"
