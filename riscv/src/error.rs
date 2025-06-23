@@ -5,6 +5,8 @@ pub enum Error {
     ClearCacheFailed,
     /// The code is too large.
     InvalidCodeSize,
+    /// The engine of the module and memory are not the same.
+    InvalidEngine,
     /// The VM encountered an instruction that is not valid or not supported.
     InvalidInstruction,
     /// The VM failed to allocate memory.
@@ -20,6 +22,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::ClearCacheFailed => write!(f, "clear cache failed"),
             Error::InvalidCodeSize => write!(f, "invalid code size"),
+            Error::InvalidEngine => write!(f, "invalid engine"),
             Error::InvalidInstruction => write!(f, "invalid or unsupported instruction"),
             Error::MemoryAllocationFailed => write!(f, "memory allocation failed"),
             Error::MemoryProtectionFailed => write!(f, "memory protection failed"),
