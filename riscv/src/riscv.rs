@@ -27,7 +27,7 @@ impl Riscv {
         #[cfg(not(target_arch = "aarch64"))]
         compile_error!("This code only supports aarch64 targets.");
 
-        let memory = vec![0; config.max_memory as usize];
+        let memory = vec![0; config.max_instance_memory as usize];
         let native_code_addr: *mut c_void;
 
         unsafe {

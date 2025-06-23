@@ -12,8 +12,7 @@ fn main() {
 
     let mut riscv = Riscv::new(Config {
         syscall,
-        context: 0,
-        max_memory: 1024 * 1024,
+        max_instance_memory: 1024 * 1024,
         max_code_size: 1024,
     })
     .unwrap();
