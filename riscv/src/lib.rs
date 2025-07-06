@@ -2,6 +2,7 @@ mod config;
 mod engine;
 mod error;
 mod instance;
+mod instruction;
 mod memory;
 mod module;
 
