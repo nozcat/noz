@@ -78,6 +78,12 @@ pub enum RiscVInstruction {
     /// storing the result in `rd`.
     Lh { rd: u8, rs1: u8, imm: i16 },
 
+    /// Load Word instruction (RV32I base instruction set)
+    ///
+    /// Loads a 32-bit value from memory address `rs1 + imm` and stores it in `rd`.
+    /// No sign extension is needed as it's a full 32-bit load.
+    Lw { rd: u8, rs1: u8, imm: i16 },
+
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
@@ -126,6 +132,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Lh { rd, rs1, imm } => {
                 write!(f, "lh x{}, {}(x{})", rd, imm, rs1)
             }
+            RiscVInstruction::Lw { rd, rs1, imm } => {
+                write!(f, "lw x{}, {}(x{})", rd, imm, rs1)
+            }
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
@@ -156,6 +165,7 @@ const JALR_FUNCT3: u32 = 0x0;
 const LOAD_OPCODE: u32 = 0x03;
 const LB_FUNCT3: u8 = 0x0;
 const LH_FUNCT3: u8 = 0x1;
+const LW_FUNCT3: u8 = 0x2;
 
 const OPCODE_MASK: u32 = 0x7f;
 const FUNCT3_MASK: u32 = 0x7000;
@@ -249,6 +259,7 @@ impl RiscVInstruction {
                 match funct3 {
                     LB_FUNCT3 => RiscVInstruction::Lb { rd, rs1, imm },
                     LH_FUNCT3 => RiscVInstruction::Lh { rd, rs1, imm },
+                    LW_FUNCT3 => RiscVInstruction::Lw { rd, rs1, imm },
                     _ => RiscVInstruction::Unsupported(word),
                 }
             }
@@ -1705,6 +1716,145 @@ mod tests {
                     }
                 }
             }
+
+            mod lw {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let lw_x1_x2_100 = 0x06412083;
+                    let decoded = RiscVInstruction::decode(lw_x1_x2_100);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 100);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let lw_x0_x1_0 = 0x0000a003;
+                    let decoded = RiscVInstruction::decode(lw_x0_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let lw_x31_x1_0 = 0x0000a003 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(lw_x31_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let lw_x1_x0_0 = 0x00002083;
+                    let decoded = RiscVInstruction::decode(lw_x1_x0_0);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let lw_x1_x31_0 = 0x000fa083;
+                    let decoded = RiscVInstruction::decode(lw_x1_x31_0);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn negative_imm() {
+                    let lw_x0_x1_neg4 = 0xffc0a003;
+                    let decoded = RiscVInstruction::decode(lw_x0_x1_neg4);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, -4);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn zero_imm() {
+                    let lw_x1_x2_0 = 0x00012083;
+                    let decoded = RiscVInstruction::decode(lw_x1_x2_0);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_positive_imm() {
+                    let lw_x1_x0_2047 = 0x7ff02083;
+                    let decoded = RiscVInstruction::decode(lw_x1_x0_2047);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 2047);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_negative_imm() {
+                    let lw_x1_x0_neg2048 = 0x80002083;
+                    let decoded = RiscVInstruction::decode(lw_x1_x0_neg2048);
+
+                    match decoded {
+                        RiscVInstruction::Lw { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, -2048);
+                        }
+                        _ => panic!("Expected LW instruction"),
+                    }
+                }
+            }
         }
 
         mod jalr {
@@ -2487,6 +2637,60 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", lh_max), "lh x31, 2047(x31)");
+            }
+        }
+
+        mod lw {
+            use super::*;
+
+            #[test]
+            fn positive_immediate() {
+                let lw = RiscVInstruction::Lw {
+                    rd: 1,
+                    rs1: 2,
+                    imm: 100,
+                };
+                assert_eq!(format!("{}", lw), "lw x1, 100(x2)");
+            }
+
+            #[test]
+            fn negative_immediate() {
+                let lw = RiscVInstruction::Lw {
+                    rd: 0,
+                    rs1: 1,
+                    imm: -4,
+                };
+                assert_eq!(format!("{}", lw), "lw x0, -4(x1)");
+            }
+
+            #[test]
+            fn zero_immediate() {
+                let lw = RiscVInstruction::Lw {
+                    rd: 31,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", lw), "lw x31, 0(x0)");
+            }
+
+            #[test]
+            fn min_values() {
+                let lw_min = RiscVInstruction::Lw {
+                    rd: 0,
+                    rs1: 0,
+                    imm: -2048,
+                };
+                assert_eq!(format!("{}", lw_min), "lw x0, -2048(x0)");
+            }
+
+            #[test]
+            fn max_values() {
+                let lw_max = RiscVInstruction::Lw {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", lw_max), "lw x31, 2047(x31)");
             }
         }
 
