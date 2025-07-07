@@ -84,6 +84,12 @@ pub enum RiscVInstruction {
     /// No sign extension is needed as it's a full 32-bit load.
     Lw { rd: u8, rs1: u8, imm: i16 },
 
+    /// Load Byte Unsigned instruction (RV32I base instruction set)
+    ///
+    /// Loads an 8-bit value from memory address `rs1 + imm` and zero-extends it to 32 bits,
+    /// storing the result in `rd`.
+    Lbu { rd: u8, rs1: u8, imm: i16 },
+
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
@@ -135,6 +141,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Lw { rd, rs1, imm } => {
                 write!(f, "lw x{}, {}(x{})", rd, imm, rs1)
             }
+            RiscVInstruction::Lbu { rd, rs1, imm } => {
+                write!(f, "lbu x{}, {}(x{})", rd, imm, rs1)
+            }
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
@@ -166,6 +175,7 @@ const LOAD_OPCODE: u32 = 0x03;
 const LB_FUNCT3: u8 = 0x0;
 const LH_FUNCT3: u8 = 0x1;
 const LW_FUNCT3: u8 = 0x2;
+const LBU_FUNCT3: u8 = 0x4;
 
 const OPCODE_MASK: u32 = 0x7f;
 const FUNCT3_MASK: u32 = 0x7000;
@@ -260,6 +270,7 @@ impl RiscVInstruction {
                     LB_FUNCT3 => RiscVInstruction::Lb { rd, rs1, imm },
                     LH_FUNCT3 => RiscVInstruction::Lh { rd, rs1, imm },
                     LW_FUNCT3 => RiscVInstruction::Lw { rd, rs1, imm },
+                    LBU_FUNCT3 => RiscVInstruction::Lbu { rd, rs1, imm },
                     _ => RiscVInstruction::Unsupported(word),
                 }
             }
@@ -1855,6 +1866,145 @@ mod tests {
                     }
                 }
             }
+
+            mod lbu {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let lbu_x1_x2_100 = 0x06414083;
+                    let decoded = RiscVInstruction::decode(lbu_x1_x2_100);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 100);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let lbu_x0_x1_0 = 0x0000c003;
+                    let decoded = RiscVInstruction::decode(lbu_x0_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let lbu_x31_x1_0 = 0x0000c003 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(lbu_x31_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let lbu_x1_x0_0 = 0x00004083;
+                    let decoded = RiscVInstruction::decode(lbu_x1_x0_0);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let lbu_x1_x31_0 = 0x0000c083 | (31 << 15);
+                    let decoded = RiscVInstruction::decode(lbu_x1_x31_0);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn negative_imm() {
+                    let lbu_x1_x2_neg4 = 0xffc14083;
+                    let decoded = RiscVInstruction::decode(lbu_x1_x2_neg4);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, -4);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn zero_imm() {
+                    let lbu_x1_x2_0 = 0x00014083;
+                    let decoded = RiscVInstruction::decode(lbu_x1_x2_0);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_positive_imm() {
+                    let lbu_x1_x0_2047 = 0x7ff04083;
+                    let decoded = RiscVInstruction::decode(lbu_x1_x0_2047);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 2047);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_negative_imm() {
+                    let lbu_x1_x0_neg2048 = 0x80004083;
+                    let decoded = RiscVInstruction::decode(lbu_x1_x0_neg2048);
+
+                    match decoded {
+                        RiscVInstruction::Lbu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, -2048);
+                        }
+                        _ => panic!("Expected LBU instruction"),
+                    }
+                }
+            }
         }
 
         mod jalr {
@@ -2691,6 +2841,60 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", lw_max), "lw x31, 2047(x31)");
+            }
+        }
+
+        mod lbu {
+            use super::*;
+
+            #[test]
+            fn positive_immediate() {
+                let lbu = RiscVInstruction::Lbu {
+                    rd: 1,
+                    rs1: 2,
+                    imm: 100,
+                };
+                assert_eq!(format!("{}", lbu), "lbu x1, 100(x2)");
+            }
+
+            #[test]
+            fn negative_immediate() {
+                let lbu = RiscVInstruction::Lbu {
+                    rd: 0,
+                    rs1: 1,
+                    imm: -4,
+                };
+                assert_eq!(format!("{}", lbu), "lbu x0, -4(x1)");
+            }
+
+            #[test]
+            fn zero_immediate() {
+                let lbu = RiscVInstruction::Lbu {
+                    rd: 31,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", lbu), "lbu x31, 0(x0)");
+            }
+
+            #[test]
+            fn min_values() {
+                let lbu_min = RiscVInstruction::Lbu {
+                    rd: 0,
+                    rs1: 0,
+                    imm: -2048,
+                };
+                assert_eq!(format!("{}", lbu_min), "lbu x0, -2048(x0)");
+            }
+
+            #[test]
+            fn max_values() {
+                let lbu_max = RiscVInstruction::Lbu {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", lbu_max), "lbu x31, 2047(x31)");
             }
         }
 
