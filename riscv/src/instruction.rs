@@ -128,6 +128,66 @@ mod tests {
             }
 
             #[test]
+            fn min_rd() {
+                let addi_x0_x1_0 = 0x00008013;
+                let decoded = RiscVInstruction::decode(addi_x0_x1_0);
+
+                match decoded {
+                    RiscVInstruction::Addi { rd, rs1, imm } => {
+                        assert_eq!(rd, 0);
+                        assert_eq!(rs1, 1);
+                        assert_eq!(imm, 0);
+                    }
+                    _ => panic!("Expected ADDI instruction"),
+                }
+            }
+
+            #[test]
+            fn max_rd() {
+                let addi_x31_x1_0 = 0x00008013 | (31 << 7);
+                let decoded = RiscVInstruction::decode(addi_x31_x1_0);
+
+                match decoded {
+                    RiscVInstruction::Addi { rd, rs1, imm } => {
+                        assert_eq!(rd, 31);
+                        assert_eq!(rs1, 1);
+                        assert_eq!(imm, 0);
+                    }
+                    _ => panic!("Expected ADDI instruction"),
+                }
+            }
+
+            #[test]
+            fn min_rs1() {
+                let addi_x1_x0_0 = 0x00000093;
+                let decoded = RiscVInstruction::decode(addi_x1_x0_0);
+
+                match decoded {
+                    RiscVInstruction::Addi { rd, rs1, imm } => {
+                        assert_eq!(rd, 1);
+                        assert_eq!(rs1, 0);
+                        assert_eq!(imm, 0);
+                    }
+                    _ => panic!("Expected ADDI instruction"),
+                }
+            }
+
+            #[test]
+            fn max_rs1() {
+                let addi_x1_x31_0 = 0x000f8093;
+                let decoded = RiscVInstruction::decode(addi_x1_x31_0);
+
+                match decoded {
+                    RiscVInstruction::Addi { rd, rs1, imm } => {
+                        assert_eq!(rd, 1);
+                        assert_eq!(rs1, 31);
+                        assert_eq!(imm, 0);
+                    }
+                    _ => panic!("Expected ADDI instruction"),
+                }
+            }
+
+            #[test]
             fn negative_imm() {
                 let addi_x0_x1_neg4 = 0xffc08013;
                 let decoded = RiscVInstruction::decode(addi_x0_x1_neg4);
@@ -235,8 +295,7 @@ mod tests {
             }
 
             #[test]
-            fn rd_range() {
-                // Test rd = 0 (x0)
+            fn min_rd() {
                 let jalr_x0 = 0x00008067;
                 let decoded = RiscVInstruction::decode(jalr_x0);
                 match decoded {
@@ -247,8 +306,10 @@ mod tests {
                     }
                     _ => panic!("Expected JALR instruction"),
                 }
+            }
 
-                // Test rd = 31 (x31)
+            #[test]
+            fn max_rd() {
                 let jalr_x31 = 0x000080e7 | (31 << 7);
                 let decoded = RiscVInstruction::decode(jalr_x31);
                 match decoded {
@@ -262,8 +323,7 @@ mod tests {
             }
 
             #[test]
-            fn rs1_range() {
-                // Test rs1 = 0 (x0)
+            fn min_rs1() {
                 let jalr_rs1_0 = 0x00000067;
                 let decoded = RiscVInstruction::decode(jalr_rs1_0);
                 match decoded {
@@ -274,8 +334,10 @@ mod tests {
                     }
                     _ => panic!("Expected JALR instruction"),
                 }
+            }
 
-                // Test rs1 = 31 (x31)
+            #[test]
+            fn max_rs1() {
                 let jalr_rs1_31 = 0x000f8067;
                 let decoded = RiscVInstruction::decode(jalr_rs1_31);
                 match decoded {
@@ -289,8 +351,7 @@ mod tests {
             }
 
             #[test]
-            fn imm_range() {
-                // Test imm = 0
+            fn zero_imm() {
                 let jalr_imm_0 = 0x00008067;
                 let decoded = RiscVInstruction::decode(jalr_imm_0);
                 match decoded {
@@ -301,8 +362,10 @@ mod tests {
                     }
                     _ => panic!("Expected JALR instruction"),
                 }
+            }
 
-                // Test imm = 2047 (max positive)
+            #[test]
+            fn max_positive_imm() {
                 let jalr_imm_2047 = 0x7ff08067;
                 let decoded = RiscVInstruction::decode(jalr_imm_2047);
                 match decoded {
@@ -313,8 +376,10 @@ mod tests {
                     }
                     _ => panic!("Expected JALR instruction"),
                 }
+            }
 
-                // Test imm = -2048 (min negative)
+            #[test]
+            fn min_negative_imm() {
                 let jalr_imm_neg2048 = 0x80008067;
                 let decoded = RiscVInstruction::decode(jalr_imm_neg2048);
                 match decoded {
@@ -325,8 +390,10 @@ mod tests {
                     }
                     _ => panic!("Expected JALR instruction"),
                 }
+            }
 
-                // Test imm = -1
+            #[test]
+            fn neg_one_imm() {
                 let jalr_imm_neg1 = 0xfff08067;
                 let decoded = RiscVInstruction::decode(jalr_imm_neg1);
                 match decoded {
@@ -391,20 +458,23 @@ mod tests {
             }
 
             #[test]
-            fn boundary_values() {
-                let addi_max = RiscVInstruction::Addi {
-                    rd: 31,
-                    rs1: 31,
-                    imm: 2047,
-                };
-                assert_eq!(format!("{}", addi_max), "addi x31, x31, 2047");
-
+            fn min_values() {
                 let addi_min = RiscVInstruction::Addi {
                     rd: 0,
                     rs1: 0,
                     imm: -2048,
                 };
                 assert_eq!(format!("{}", addi_min), "addi x0, x0, -2048");
+            }
+
+            #[test]
+            fn max_values() {
+                let addi_max = RiscVInstruction::Addi {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", addi_max), "addi x31, x31, 2047");
             }
         }
 
@@ -442,20 +512,23 @@ mod tests {
             }
 
             #[test]
-            fn boundary_values() {
-                let jalr_max = RiscVInstruction::Jalr {
-                    rd: 31,
-                    rs1: 31,
-                    imm: 2047,
-                };
-                assert_eq!(format!("{}", jalr_max), "jalr x31, x31, 2047");
-
+            fn min_values() {
                 let jalr_min = RiscVInstruction::Jalr {
                     rd: 0,
                     rs1: 0,
                     imm: -2048,
                 };
                 assert_eq!(format!("{}", jalr_min), "jalr x0, x0, -2048");
+            }
+
+            #[test]
+            fn max_values() {
+                let jalr_max = RiscVInstruction::Jalr {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", jalr_max), "jalr x31, x31, 2047");
             }
         }
 
