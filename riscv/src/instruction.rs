@@ -12,6 +12,12 @@ use std::fmt;
 /// - **Memory**: 32-bit addressing space
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RiscVInstruction {
+    /// Add instruction (RV32I base instruction set)
+    ///
+    /// Adds the values in registers `rs1` and `rs2` and stores the result in `rd`.
+    /// Performs 32-bit arithmetic addition with overflow wrapping.
+    Add { rd: u8, rs1: u8, rs2: u8 },
+
     /// Add Immediate instruction (RV32I base instruction set)
     ///
     /// Adds the immediate value to register `rs1` and stores the result in `rd`.
@@ -123,6 +129,9 @@ pub enum RiscVInstruction {
 impl fmt::Display for RiscVInstruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            RiscVInstruction::Add { rd, rs1, rs2 } => {
+                write!(f, "add x{}, x{}, x{}", rd, rs1, rs2)
+            }
             RiscVInstruction::Addi { rd, rs1, imm } => {
                 write!(f, "addi x{}, x{}, {}", rd, rs1, imm)
             }
@@ -181,6 +190,10 @@ impl fmt::Display for RiscVInstruction {
     }
 }
 
+const REG_OPCODE: u32 = 0x33;
+const ADD_FUNCT3: u8 = 0x0;
+const ADD_FUNCT7: u32 = 0x00;
+
 const IMM_OPCODE: u32 = 0x13;
 const ADDI_FUNCT3: u8 = 0x0;
 const SLTI_FUNCT3: u8 = 0x2;
@@ -190,13 +203,9 @@ const ORI_FUNCT3: u8 = 0x6;
 const ANDI_FUNCT3: u8 = 0x7;
 const SLLI_FUNCT3: u8 = 0x1;
 const SLRI_FUNCT3: u8 = 0x5;
-
 const SLLI_FUNCT7: u32 = 0x00;
 const SLRI_FUNCT7: u32 = 0x00;
 const SRAI_FUNCT7: u32 = 0x20;
-
-const JALR_OPCODE: u32 = 0x67;
-const JALR_FUNCT3: u32 = 0x0;
 
 const LOAD_OPCODE: u32 = 0x03;
 const LB_FUNCT3: u8 = 0x0;
@@ -204,6 +213,9 @@ const LH_FUNCT3: u8 = 0x1;
 const LW_FUNCT3: u8 = 0x2;
 const LBU_FUNCT3: u8 = 0x4;
 const LHU_FUNCT3: u8 = 0x5;
+
+const JALR_OPCODE: u32 = 0x67;
+const JALR_FUNCT3: u32 = 0x0;
 
 const SYSTEM_OPCODE: u32 = 0x73;
 const SYSTEM_FUNCT3: u32 = 0x0;
@@ -214,12 +226,14 @@ const OPCODE_MASK: u32 = 0x7f;
 const FUNCT3_MASK: u32 = 0x7000;
 const RD_MASK: u32 = 0xf80;
 const RS1_MASK: u32 = 0xf8000;
+const RS2_MASK: u32 = 0x1f00000;
 const IMM_I_MASK: u32 = 0xfff00000;
 const FUNCT7_MASK: u32 = 0xfe000000;
 
 const FUNCT3_SHIFT: u32 = 12;
 const RD_SHIFT: u32 = 7;
 const RS1_SHIFT: u32 = 15;
+const RS2_SHIFT: u32 = 20;
 const IMM_I_SHIFT: u32 = 20;
 const FUNCT7_SHIFT: u32 = 25;
 
@@ -233,6 +247,24 @@ impl RiscVInstruction {
         let opcode = word & OPCODE_MASK;
 
         match opcode {
+            REG_OPCODE => {
+                let funct3 = (((word & FUNCT3_MASK) >> FUNCT3_SHIFT) & 0x7) as u8;
+                let funct7 = (word & FUNCT7_MASK) >> FUNCT7_SHIFT;
+                let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
+                let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                let rs2 = ((word & RS2_MASK) >> RS2_SHIFT) as u8;
+
+                match funct3 {
+                    ADD_FUNCT3 => {
+                        if funct7 == ADD_FUNCT7 {
+                            RiscVInstruction::Add { rd, rs1, rs2 }
+                        } else {
+                            RiscVInstruction::Unsupported(word)
+                        }
+                    }
+                    _ => RiscVInstruction::Unsupported(word),
+                }
+            }
             IMM_OPCODE => {
                 let funct3 = (((word & FUNCT3_MASK) >> FUNCT3_SHIFT) & 0x7) as u8;
                 let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
@@ -340,6 +372,148 @@ mod tests {
 
     mod decode {
         use super::*;
+
+        mod register_instructions {
+            use super::*;
+
+            mod add {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let add_x1_x2_x3 = 0x003100b3;
+                    let decoded = RiscVInstruction::decode(add_x1_x2_x3);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 3);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let add_x0_x1_x2 = 0x00208033;
+                    let decoded = RiscVInstruction::decode(add_x0_x1_x2);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let add_x31_x1_x2 = 0x00208033 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(add_x31_x1_x2);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let add_x1_x0_x2 = 0x00200033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(add_x1_x0_x2);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let add_x1_x31_x2 = 0x002f8033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(add_x1_x31_x2);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs2() {
+                    let add_x1_x2_x0 = 0x00010033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(add_x1_x2_x0);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 0);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs2() {
+                    let add_x1_x2_x31 = 0x01f10033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(add_x1_x2_x31);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 31);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn all_max_values() {
+                    let add_x31_x31_x31 = 0x01ff8fb3;
+                    let decoded = RiscVInstruction::decode(add_x31_x31_x31);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(rs2, 31);
+                        }
+                        _ => panic!("Expected ADD instruction"),
+                    }
+                }
+
+                #[test]
+                fn invalid_funct7_should_be_unsupported() {
+                    // ADD with invalid funct7 (0x20 instead of 0x00)
+                    let invalid_add = 0x203100b3;
+                    let decoded = RiscVInstruction::decode(invalid_add);
+
+                    match decoded {
+                        RiscVInstruction::Unsupported(word) => {
+                            assert_eq!(word, 0x203100b3);
+                        }
+                        _ => panic!("Expected unsupported instruction"),
+                    }
+                }
+            }
+        }
 
         mod immediate_instructions {
             use super::*;
@@ -2622,6 +2796,60 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", addi_max), "addi x31, x31, 2047");
+            }
+        }
+
+        mod add {
+            use super::*;
+
+            #[test]
+            fn basic() {
+                let add = RiscVInstruction::Add {
+                    rd: 1,
+                    rs1: 2,
+                    rs2: 3,
+                };
+                assert_eq!(format!("{}", add), "add x1, x2, x3");
+            }
+
+            #[test]
+            fn min_values() {
+                let add_min = RiscVInstruction::Add {
+                    rd: 0,
+                    rs1: 0,
+                    rs2: 0,
+                };
+                assert_eq!(format!("{}", add_min), "add x0, x0, x0");
+            }
+
+            #[test]
+            fn max_values() {
+                let add_max = RiscVInstruction::Add {
+                    rd: 31,
+                    rs1: 31,
+                    rs2: 31,
+                };
+                assert_eq!(format!("{}", add_max), "add x31, x31, x31");
+            }
+
+            #[test]
+            fn mixed_registers() {
+                let add_mixed = RiscVInstruction::Add {
+                    rd: 5,
+                    rs1: 10,
+                    rs2: 15,
+                };
+                assert_eq!(format!("{}", add_mixed), "add x5, x10, x15");
+            }
+
+            #[test]
+            fn same_registers() {
+                let add_same = RiscVInstruction::Add {
+                    rd: 7,
+                    rs1: 7,
+                    rs2: 7,
+                };
+                assert_eq!(format!("{}", add_same), "add x7, x7, x7");
             }
         }
 
