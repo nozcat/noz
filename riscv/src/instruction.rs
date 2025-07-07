@@ -24,6 +24,12 @@ pub enum RiscVInstruction {
     /// storing the result in `rd`.
     Xori { rd: u8, rs1: u8, imm: i16 },
 
+    /// OR Immediate instruction (RV32I base instruction set)
+    ///
+    /// Performs bitwise OR between register `rs1` and the immediate value,
+    /// storing the result in `rd`.
+    Ori { rd: u8, rs1: u8, imm: i16 },
+
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
@@ -45,6 +51,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Xori { rd, rs1, imm } => {
                 write!(f, "xori x{}, x{}, {}", rd, rs1, imm)
             }
+            RiscVInstruction::Ori { rd, rs1, imm } => {
+                write!(f, "ori x{}, x{}, {}", rd, rs1, imm)
+            }
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
@@ -58,6 +67,7 @@ impl fmt::Display for RiscVInstruction {
 const IMM_OPCODE: u32 = 0x13;
 const ADDI_FUNCT3: u32 = 0x0;
 const XORI_FUNCT3: u32 = 0x4;
+const ORI_FUNCT3: u32 = 0x6;
 
 const JALR_OPCODE: u32 = 0x67;
 const JALR_FUNCT3: u32 = 0x0;
@@ -92,6 +102,7 @@ impl RiscVInstruction {
                 match funct3 {
                     ADDI_FUNCT3 => RiscVInstruction::Addi { rd, rs1, imm },
                     XORI_FUNCT3 => RiscVInstruction::Xori { rd, rs1, imm },
+                    ORI_FUNCT3 => RiscVInstruction::Ori { rd, rs1, imm },
                     _ => RiscVInstruction::Unsupported(word),
                 }
             }
@@ -399,6 +410,145 @@ mod tests {
                     }
                 }
             }
+
+            mod ori {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let ori_x1_x2_100 = 0x06416093;
+                    let decoded = RiscVInstruction::decode(ori_x1_x2_100);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 100);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let ori_x0_x1_0 = 0x0000e013;
+                    let decoded = RiscVInstruction::decode(ori_x0_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let ori_x31_x1_0 = 0x0000e013 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(ori_x31_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let ori_x1_x0_0 = 0x00006093;
+                    let decoded = RiscVInstruction::decode(ori_x1_x0_0);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let ori_x1_x31_0 = 0x000fe093;
+                    let decoded = RiscVInstruction::decode(ori_x1_x31_0);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn negative_imm() {
+                    let ori_x0_x1_neg4 = 0xffc0e013;
+                    let decoded = RiscVInstruction::decode(ori_x0_x1_neg4);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, -4);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn zero_imm() {
+                    let ori_x1_x2_0 = 0x00016093;
+                    let decoded = RiscVInstruction::decode(ori_x1_x2_0);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_positive_imm() {
+                    let ori_x1_x0_2047 = 0x7ff06093;
+                    let decoded = RiscVInstruction::decode(ori_x1_x0_2047);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 2047);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_negative_imm() {
+                    let ori_x1_x0_neg2048 = 0x80006093;
+                    let decoded = RiscVInstruction::decode(ori_x1_x0_neg2048);
+
+                    match decoded {
+                        RiscVInstruction::Ori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, -2048);
+                        }
+                        _ => panic!("Expected ORI instruction"),
+                    }
+                }
+            }
         }
 
         mod jalr {
@@ -551,7 +701,7 @@ mod tests {
             use super::*;
 
             #[test]
-            fn unsupported_opcode() {
+            fn opcode() {
                 let unsupported = 0x12345678;
                 let decoded = RiscVInstruction::decode(unsupported);
 
@@ -564,7 +714,7 @@ mod tests {
             }
 
             #[test]
-            fn unsupported_immediate_funct3() {
+            fn immediate_funct3() {
                 let imm_with_invalid_funct3 = 0x00411093;
                 let decoded = RiscVInstruction::decode(imm_with_invalid_funct3);
 
@@ -579,7 +729,7 @@ mod tests {
             }
 
             #[test]
-            fn unsupported_jalr_funct3() {
+            fn jalr_funct3() {
                 let jalr_with_invalid_funct3 = 0x004110e7;
                 let decoded = RiscVInstruction::decode(jalr_with_invalid_funct3);
 
@@ -701,6 +851,60 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", xori_max), "xori x31, x31, 2047");
+            }
+        }
+
+        mod ori {
+            use super::*;
+
+            #[test]
+            fn positive_immediate() {
+                let ori = RiscVInstruction::Ori {
+                    rd: 1,
+                    rs1: 2,
+                    imm: 100,
+                };
+                assert_eq!(format!("{}", ori), "ori x1, x2, 100");
+            }
+
+            #[test]
+            fn negative_immediate() {
+                let ori = RiscVInstruction::Ori {
+                    rd: 0,
+                    rs1: 1,
+                    imm: -4,
+                };
+                assert_eq!(format!("{}", ori), "ori x0, x1, -4");
+            }
+
+            #[test]
+            fn zero_immediate() {
+                let ori = RiscVInstruction::Ori {
+                    rd: 31,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", ori), "ori x31, x0, 0");
+            }
+
+            #[test]
+            fn min_values() {
+                let ori_min = RiscVInstruction::Ori {
+                    rd: 0,
+                    rs1: 0,
+                    imm: -2048,
+                };
+                assert_eq!(format!("{}", ori_min), "ori x0, x0, -2048");
+            }
+
+            #[test]
+            fn max_values() {
+                let ori_max = RiscVInstruction::Ori {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", ori_max), "ori x31, x31, 2047");
             }
         }
 
