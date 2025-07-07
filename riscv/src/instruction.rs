@@ -30,6 +30,12 @@ pub enum RiscVInstruction {
     /// Each bit in the result is 1 if the corresponding bits in the operands are different.
     Xor { rd: u8, rs1: u8, rs2: u8 },
 
+    /// OR instruction (RV32I base instruction set)
+    ///
+    /// Performs bitwise OR between registers `rs1` and `rs2` and stores the result in `rd`.
+    /// Each bit in the result is 1 if either corresponding bit in the operands is 1.
+    Or { rd: u8, rs1: u8, rs2: u8 },
+
     /// Add Immediate instruction (RV32I base instruction set)
     ///
     /// Adds the immediate value to register `rs1` and stores the result in `rd`.
@@ -150,6 +156,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Xor { rd, rs1, rs2 } => {
                 write!(f, "xor x{}, x{}, x{}", rd, rs1, rs2)
             }
+            RiscVInstruction::Or { rd, rs1, rs2 } => {
+                write!(f, "or x{}, x{}, x{}", rd, rs1, rs2)
+            }
             RiscVInstruction::Addi { rd, rs1, imm } => {
                 write!(f, "addi x{}, x{}, {}", rd, rs1, imm)
             }
@@ -214,6 +223,8 @@ const ADD_FUNCT7: u32 = 0x00;
 const SUB_FUNCT7: u32 = 0x20;
 const XOR_FUNCT3: u8 = 0x4;
 const XOR_FUNCT7: u32 = 0x00;
+const OR_FUNCT3: u8 = 0x6;
+const OR_FUNCT7: u32 = 0x00;
 
 const IMM_OPCODE: u32 = 0x13;
 const ADDI_FUNCT3: u8 = 0x0;
@@ -288,6 +299,13 @@ impl RiscVInstruction {
                     XOR_FUNCT3 => {
                         if funct7 == XOR_FUNCT7 {
                             RiscVInstruction::Xor { rd, rs1, rs2 }
+                        } else {
+                            RiscVInstruction::Unsupported(word)
+                        }
+                    }
+                    OR_FUNCT3 => {
+                        if funct7 == OR_FUNCT7 {
+                            RiscVInstruction::Or { rd, rs1, rs2 }
                         } else {
                             RiscVInstruction::Unsupported(word)
                         }
@@ -817,6 +835,144 @@ mod tests {
                     match decoded {
                         RiscVInstruction::Unsupported(word) => {
                             assert_eq!(word, 0x203140b3);
+                        }
+                        _ => panic!("Expected unsupported instruction"),
+                    }
+                }
+            }
+
+            mod or {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let or_x1_x2_x3 = 0x003160b3;
+                    let decoded = RiscVInstruction::decode(or_x1_x2_x3);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 3);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let or_x0_x1_x2 = 0x0020e033;
+                    let decoded = RiscVInstruction::decode(or_x0_x1_x2);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let or_x31_x1_x2 = 0x0020e033 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(or_x31_x1_x2);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let or_x1_x0_x2 = 0x00206033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(or_x1_x0_x2);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let or_x1_x31_x2 = 0x002fe033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(or_x1_x31_x2);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs2() {
+                    let or_x1_x2_x0 = 0x00016033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(or_x1_x2_x0);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 0);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs2() {
+                    let or_x1_x2_x31 = 0x01f16033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(or_x1_x2_x31);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 31);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn all_max_values() {
+                    let or_x31_x31_x31 = 0x01ffefb3;
+                    let decoded = RiscVInstruction::decode(or_x31_x31_x31);
+
+                    match decoded {
+                        RiscVInstruction::Or { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(rs2, 31);
+                        }
+                        _ => panic!("Expected OR instruction"),
+                    }
+                }
+
+                #[test]
+                fn invalid_funct7_should_be_unsupported() {
+                    // OR with invalid funct7 (0x20 instead of 0x00)
+                    let invalid_or = 0x203160b3;
+                    let decoded = RiscVInstruction::decode(invalid_or);
+
+                    match decoded {
+                        RiscVInstruction::Unsupported(word) => {
+                            assert_eq!(word, 0x203160b3);
                         }
                         _ => panic!("Expected unsupported instruction"),
                     }
@@ -3267,6 +3423,60 @@ mod tests {
                     rs2: 7,
                 };
                 assert_eq!(format!("{}", xor_same), "xor x7, x7, x7");
+            }
+        }
+
+        mod or {
+            use super::*;
+
+            #[test]
+            fn basic() {
+                let or = RiscVInstruction::Or {
+                    rd: 1,
+                    rs1: 2,
+                    rs2: 3,
+                };
+                assert_eq!(format!("{}", or), "or x1, x2, x3");
+            }
+
+            #[test]
+            fn min_values() {
+                let or_min = RiscVInstruction::Or {
+                    rd: 0,
+                    rs1: 0,
+                    rs2: 0,
+                };
+                assert_eq!(format!("{}", or_min), "or x0, x0, x0");
+            }
+
+            #[test]
+            fn max_values() {
+                let or_max = RiscVInstruction::Or {
+                    rd: 31,
+                    rs1: 31,
+                    rs2: 31,
+                };
+                assert_eq!(format!("{}", or_max), "or x31, x31, x31");
+            }
+
+            #[test]
+            fn mixed_registers() {
+                let or_mixed = RiscVInstruction::Or {
+                    rd: 5,
+                    rs1: 10,
+                    rs2: 15,
+                };
+                assert_eq!(format!("{}", or_mixed), "or x5, x10, x15");
+            }
+
+            #[test]
+            fn same_registers() {
+                let or_same = RiscVInstruction::Or {
+                    rd: 7,
+                    rs1: 7,
+                    rs2: 7,
+                };
+                assert_eq!(format!("{}", or_same), "or x7, x7, x7");
             }
         }
 
