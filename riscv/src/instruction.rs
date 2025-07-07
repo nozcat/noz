@@ -42,6 +42,12 @@ pub enum RiscVInstruction {
     /// stores the result in `rd`. Zero bits are shifted in from the right.
     Slli { rd: u8, rs1: u8, imm: i16 },
 
+    /// Shift Right Logical Immediate instruction (RV32I base instruction set)
+    ///
+    /// Shifts register `rs1` right by the immediate value (0-31 bits) and
+    /// stores the result in `rd`. Zero bits are shifted in from the left.
+    Slri { rd: u8, rs1: u8, imm: i16 },
+
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
@@ -72,6 +78,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Slli { rd, rs1, imm } => {
                 write!(f, "slli x{}, x{}, {}", rd, rs1, imm)
             }
+            RiscVInstruction::Slri { rd, rs1, imm } => {
+                write!(f, "slri x{}, x{}, {}", rd, rs1, imm)
+            }
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
@@ -88,6 +97,7 @@ const XORI_FUNCT3: u32 = 0x4;
 const ORI_FUNCT3: u32 = 0x6;
 const ANDI_FUNCT3: u32 = 0x7;
 const SLLI_FUNCT3: u32 = 0x1;
+const SLRI_FUNCT3: u32 = 0x5;
 
 const JALR_OPCODE: u32 = 0x67;
 const JALR_FUNCT3: u32 = 0x0;
@@ -122,6 +132,7 @@ impl RiscVInstruction {
                 match funct3 {
                     ADDI_FUNCT3 => RiscVInstruction::Addi { rd, rs1, imm },
                     SLLI_FUNCT3 => RiscVInstruction::Slli { rd, rs1, imm },
+                    SLRI_FUNCT3 => RiscVInstruction::Slri { rd, rs1, imm },
                     XORI_FUNCT3 => RiscVInstruction::Xori { rd, rs1, imm },
                     ORI_FUNCT3 => RiscVInstruction::Ori { rd, rs1, imm },
                     ANDI_FUNCT3 => RiscVInstruction::Andi { rd, rs1, imm },
@@ -819,6 +830,115 @@ mod tests {
                     }
                 }
             }
+
+            mod slri {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let slri_x1_x2_5 = 0x00515093;
+                    let decoded = RiscVInstruction::decode(slri_x1_x2_5);
+
+                    match decoded {
+                        RiscVInstruction::Slri { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 5);
+                        }
+                        _ => panic!("Expected SLRI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let slri_x0_x1_1 = 0x0010d013;
+                    let decoded = RiscVInstruction::decode(slri_x0_x1_1);
+
+                    match decoded {
+                        RiscVInstruction::Slri { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 1);
+                        }
+                        _ => panic!("Expected SLRI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let slri_x31_x1_1 = 0x0010d013 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(slri_x31_x1_1);
+
+                    match decoded {
+                        RiscVInstruction::Slri { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 1);
+                        }
+                        _ => panic!("Expected SLRI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let slri_x1_x0_1 = 0x00105093;
+                    let decoded = RiscVInstruction::decode(slri_x1_x0_1);
+
+                    match decoded {
+                        RiscVInstruction::Slri { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 1);
+                        }
+                        _ => panic!("Expected SLRI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let slri_x1_x31_1 = 0x001fd093;
+                    let decoded = RiscVInstruction::decode(slri_x1_x31_1);
+
+                    match decoded {
+                        RiscVInstruction::Slri { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 1);
+                        }
+                        _ => panic!("Expected SLRI instruction"),
+                    }
+                }
+
+                #[test]
+                fn zero_imm() {
+                    let slri_x1_x2_0 = 0x00015093;
+                    let decoded = RiscVInstruction::decode(slri_x1_x2_0);
+
+                    match decoded {
+                        RiscVInstruction::Slri { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected SLRI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_shift_amount() {
+                    let slri_x1_x2_31 = 0x01f15093;
+                    let decoded = RiscVInstruction::decode(slri_x1_x2_31);
+
+                    match decoded {
+                        RiscVInstruction::Slri { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 31);
+                        }
+                        _ => panic!("Expected SLRI instruction"),
+                    }
+                }
+            }
         }
 
         mod jalr {
@@ -1288,6 +1408,50 @@ mod tests {
                     imm: 31,
                 };
                 assert_eq!(format!("{}", slli_max), "slli x31, x31, 31");
+            }
+        }
+
+        mod slri {
+            use super::*;
+
+            #[test]
+            fn positive_immediate() {
+                let slri = RiscVInstruction::Slri {
+                    rd: 1,
+                    rs1: 2,
+                    imm: 5,
+                };
+                assert_eq!(format!("{}", slri), "slri x1, x2, 5");
+            }
+
+            #[test]
+            fn zero_immediate() {
+                let slri = RiscVInstruction::Slri {
+                    rd: 31,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", slri), "slri x31, x0, 0");
+            }
+
+            #[test]
+            fn min_values() {
+                let slri_min = RiscVInstruction::Slri {
+                    rd: 0,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", slri_min), "slri x0, x0, 0");
+            }
+
+            #[test]
+            fn max_values() {
+                let slri_max = RiscVInstruction::Slri {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 31,
+                };
+                assert_eq!(format!("{}", slri_max), "slri x31, x31, 31");
             }
         }
 
