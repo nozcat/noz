@@ -2,16 +2,21 @@ mod config;
 mod engine;
 mod error;
 mod instance;
+mod instruction;
 mod memory;
 mod module;
+#[cfg(test)]
+mod tests;
 
 pub use config::Config;
 pub use engine::Engine;
 pub use error::Error;
 pub use instance::Instance;
+pub use instruction::RiscVInstruction;
 pub use memory::Memory;
 pub use module::Module;
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -56,3 +61,4 @@ mod tests {
         assert_eq!(output, 42);
     }
 }
+*/
