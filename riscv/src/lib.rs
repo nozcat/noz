@@ -10,6 +10,7 @@ pub use config::Config;
 pub use engine::Engine;
 pub use error::Error;
 pub use instance::Instance;
+pub use instruction::RiscVInstruction;
 pub use memory::Memory;
 pub use module::Module;
 

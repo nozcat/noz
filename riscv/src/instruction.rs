@@ -46,22 +46,22 @@ impl fmt::Display for RiscVInstruction {
     }
 }
 
-pub const ADDI_OPCODE: u32 = 0x13;
-pub const ADDI_FUNCT3: u32 = 0x0;
+const ADDI_OPCODE: u32 = 0x13;
+const ADDI_FUNCT3: u32 = 0x0;
 
-pub const JALR_OPCODE: u32 = 0x67;
-pub const JALR_FUNCT3: u32 = 0x0;
+const JALR_OPCODE: u32 = 0x67;
+const JALR_FUNCT3: u32 = 0x0;
 
-pub const OPCODE_MASK: u32 = 0x7f;
-pub const FUNCT3_MASK: u32 = 0x7000;
-pub const RD_MASK: u32 = 0xf80;
-pub const RS1_MASK: u32 = 0xf8000;
-pub const IMM_I_MASK: u32 = 0xfff00000;
+const OPCODE_MASK: u32 = 0x7f;
+const FUNCT3_MASK: u32 = 0x7000;
+const RD_MASK: u32 = 0xf80;
+const RS1_MASK: u32 = 0xf8000;
+const IMM_I_MASK: u32 = 0xfff00000;
 
-pub const FUNCT3_SHIFT: u32 = 12;
-pub const RD_SHIFT: u32 = 7;
-pub const RS1_SHIFT: u32 = 15;
-pub const IMM_I_SHIFT: u32 = 20;
+const FUNCT3_SHIFT: u32 = 12;
+const RD_SHIFT: u32 = 7;
+const RS1_SHIFT: u32 = 15;
+const IMM_I_SHIFT: u32 = 20;
 
 impl RiscVInstruction {
     /// Decode a 32-bit instruction word into a RiscVInstruction
