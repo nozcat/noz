@@ -60,6 +60,12 @@ pub enum RiscVInstruction {
     /// Sets `rd` to 1 if `rs1` < imm, otherwise sets `rd` to 0.
     Slti { rd: u8, rs1: u8, imm: i16 },
 
+    /// Set Less Than Immediate Unsigned instruction (RV32I base instruction set)
+    ///
+    /// Compares register `rs1` with the immediate value using unsigned comparison.
+    /// Sets `rd` to 1 if `rs1` < imm (unsigned), otherwise sets `rd` to 0.
+    Sltiu { rd: u8, rs1: u8, imm: i16 },
+
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
@@ -99,6 +105,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Slti { rd, rs1, imm } => {
                 write!(f, "slti x{}, x{}, {}", rd, rs1, imm)
             }
+            RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                write!(f, "sltiu x{}, x{}, {}", rd, rs1, imm)
+            }
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
@@ -110,13 +119,14 @@ impl fmt::Display for RiscVInstruction {
 }
 
 const IMM_OPCODE: u32 = 0x13;
-const ADDI_FUNCT3: u32 = 0x0;
-const SLTI_FUNCT3: u32 = 0x2;
-const XORI_FUNCT3: u32 = 0x4;
-const ORI_FUNCT3: u32 = 0x6;
-const ANDI_FUNCT3: u32 = 0x7;
-const SLLI_FUNCT3: u32 = 0x1;
-const SLRI_FUNCT3: u32 = 0x5;
+const ADDI_FUNCT3: u8 = 0x0;
+const SLTI_FUNCT3: u8 = 0x2;
+const SLTIU_FUNCT3: u8 = 0x3;
+const XORI_FUNCT3: u8 = 0x4;
+const ORI_FUNCT3: u8 = 0x6;
+const ANDI_FUNCT3: u8 = 0x7;
+const SLLI_FUNCT3: u8 = 0x1;
+const SLRI_FUNCT3: u8 = 0x5;
 
 const SLLI_FUNCT7: u32 = 0x00;
 const SLRI_FUNCT7: u32 = 0x00;
@@ -149,7 +159,7 @@ impl RiscVInstruction {
 
         match opcode {
             IMM_OPCODE => {
-                let funct3 = (word & FUNCT3_MASK) >> FUNCT3_SHIFT;
+                let funct3 = (((word & FUNCT3_MASK) >> FUNCT3_SHIFT) & 0x7) as u8;
                 let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
                 let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
                 let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
@@ -158,6 +168,7 @@ impl RiscVInstruction {
                 match funct3 {
                     ADDI_FUNCT3 => RiscVInstruction::Addi { rd, rs1, imm },
                     SLTI_FUNCT3 => RiscVInstruction::Slti { rd, rs1, imm },
+                    SLTIU_FUNCT3 => RiscVInstruction::Sltiu { rd, rs1, imm },
                     SLLI_FUNCT3 => {
                         if funct7 == SLLI_FUNCT7 {
                             let shift_imm = imm & 0x1f;
@@ -192,7 +203,7 @@ impl RiscVInstruction {
                     XORI_FUNCT3 => RiscVInstruction::Xori { rd, rs1, imm },
                     ORI_FUNCT3 => RiscVInstruction::Ori { rd, rs1, imm },
                     ANDI_FUNCT3 => RiscVInstruction::Andi { rd, rs1, imm },
-                    _ => RiscVInstruction::Unsupported(word),
+                    _ => unreachable!("All 3-bit funct3 values are handled above"),
                 }
             }
             JALR_OPCODE => {
@@ -1243,6 +1254,145 @@ mod tests {
                     }
                 }
             }
+
+            mod sltiu {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let sltiu_x1_x2_100 = 0x06413093;
+                    let decoded = RiscVInstruction::decode(sltiu_x1_x2_100);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 100);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let sltiu_x0_x1_0 = 0x0000b013;
+                    let decoded = RiscVInstruction::decode(sltiu_x0_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let sltiu_x31_x1_0 = 0x0000b013 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(sltiu_x31_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let sltiu_x1_x0_0 = 0x00003093;
+                    let decoded = RiscVInstruction::decode(sltiu_x1_x0_0);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let sltiu_x1_x31_0 = 0x000fb093;
+                    let decoded = RiscVInstruction::decode(sltiu_x1_x31_0);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn negative_imm() {
+                    let sltiu_x0_x1_neg4 = 0xffc0b013;
+                    let decoded = RiscVInstruction::decode(sltiu_x0_x1_neg4);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, -4);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn zero_imm() {
+                    let sltiu_x1_x2_0 = 0x00013093;
+                    let decoded = RiscVInstruction::decode(sltiu_x1_x2_0);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_positive_imm() {
+                    let sltiu_x1_x0_2047 = 0x7ff03093;
+                    let decoded = RiscVInstruction::decode(sltiu_x1_x0_2047);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 2047);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_negative_imm() {
+                    let sltiu_x1_x0_neg2048 = 0x80003093;
+                    let decoded = RiscVInstruction::decode(sltiu_x1_x0_neg2048);
+
+                    match decoded {
+                        RiscVInstruction::Sltiu { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, -2048);
+                        }
+                        _ => panic!("Expected SLTIU instruction"),
+                    }
+                }
+            }
         }
 
         mod jalr {
@@ -1404,21 +1554,6 @@ mod tests {
                         assert_eq!(word, 0x12345678);
                     }
                     _ => panic!("Expected unsupported instruction"),
-                }
-            }
-
-            #[test]
-            fn immediate_funct3() {
-                let imm_with_invalid_funct3 = 0x00413093;
-                let decoded = RiscVInstruction::decode(imm_with_invalid_funct3);
-
-                match decoded {
-                    RiscVInstruction::Unsupported(word) => {
-                        assert_eq!(word, 0x00413093);
-                    }
-                    _ => panic!(
-                        "Expected unsupported instruction for immediate instruction with invalid funct3"
-                    ),
                 }
             }
 
@@ -1878,6 +2013,60 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", slti_max), "slti x31, x31, 2047");
+            }
+        }
+
+        mod sltiu {
+            use super::*;
+
+            #[test]
+            fn positive_immediate() {
+                let sltiu = RiscVInstruction::Sltiu {
+                    rd: 1,
+                    rs1: 2,
+                    imm: 100,
+                };
+                assert_eq!(format!("{}", sltiu), "sltiu x1, x2, 100");
+            }
+
+            #[test]
+            fn negative_immediate() {
+                let sltiu = RiscVInstruction::Sltiu {
+                    rd: 0,
+                    rs1: 1,
+                    imm: -4,
+                };
+                assert_eq!(format!("{}", sltiu), "sltiu x0, x1, -4");
+            }
+
+            #[test]
+            fn zero_immediate() {
+                let sltiu = RiscVInstruction::Sltiu {
+                    rd: 31,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", sltiu), "sltiu x31, x0, 0");
+            }
+
+            #[test]
+            fn min_values() {
+                let sltiu_min = RiscVInstruction::Sltiu {
+                    rd: 0,
+                    rs1: 0,
+                    imm: -2048,
+                };
+                assert_eq!(format!("{}", sltiu_min), "sltiu x0, x0, -2048");
+            }
+
+            #[test]
+            fn max_values() {
+                let sltiu_max = RiscVInstruction::Sltiu {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", sltiu_max), "sltiu x31, x31, 2047");
             }
         }
 
