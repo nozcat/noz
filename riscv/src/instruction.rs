@@ -30,6 +30,12 @@ pub enum RiscVInstruction {
     /// storing the result in `rd`.
     Ori { rd: u8, rs1: u8, imm: i16 },
 
+    /// AND Immediate instruction (RV32I base instruction set)
+    ///
+    /// Performs bitwise AND between register `rs1` and the immediate value,
+    /// storing the result in `rd`.
+    Andi { rd: u8, rs1: u8, imm: i16 },
+
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
@@ -54,6 +60,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Ori { rd, rs1, imm } => {
                 write!(f, "ori x{}, x{}, {}", rd, rs1, imm)
             }
+            RiscVInstruction::Andi { rd, rs1, imm } => {
+                write!(f, "andi x{}, x{}, {}", rd, rs1, imm)
+            }
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
@@ -68,6 +77,7 @@ const IMM_OPCODE: u32 = 0x13;
 const ADDI_FUNCT3: u32 = 0x0;
 const XORI_FUNCT3: u32 = 0x4;
 const ORI_FUNCT3: u32 = 0x6;
+const ANDI_FUNCT3: u32 = 0x7;
 
 const JALR_OPCODE: u32 = 0x67;
 const JALR_FUNCT3: u32 = 0x0;
@@ -103,6 +113,7 @@ impl RiscVInstruction {
                     ADDI_FUNCT3 => RiscVInstruction::Addi { rd, rs1, imm },
                     XORI_FUNCT3 => RiscVInstruction::Xori { rd, rs1, imm },
                     ORI_FUNCT3 => RiscVInstruction::Ori { rd, rs1, imm },
+                    ANDI_FUNCT3 => RiscVInstruction::Andi { rd, rs1, imm },
                     _ => RiscVInstruction::Unsupported(word),
                 }
             }
@@ -549,6 +560,145 @@ mod tests {
                     }
                 }
             }
+
+            mod andi {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let andi_x1_x2_100 = 0x06417093;
+                    let decoded = RiscVInstruction::decode(andi_x1_x2_100);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 100);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let andi_x0_x1_0 = 0x0000f013;
+                    let decoded = RiscVInstruction::decode(andi_x0_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let andi_x31_x1_0 = 0x0000f013 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(andi_x31_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let andi_x1_x0_0 = 0x00007093;
+                    let decoded = RiscVInstruction::decode(andi_x1_x0_0);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let andi_x1_x31_0 = 0x000ff093;
+                    let decoded = RiscVInstruction::decode(andi_x1_x31_0);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn negative_imm() {
+                    let andi_x0_x1_neg4 = 0xffc0f013;
+                    let decoded = RiscVInstruction::decode(andi_x0_x1_neg4);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, -4);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn zero_imm() {
+                    let andi_x1_x2_0 = 0x00017093;
+                    let decoded = RiscVInstruction::decode(andi_x1_x2_0);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_positive_imm() {
+                    let andi_x1_x0_2047 = 0x7ff07093;
+                    let decoded = RiscVInstruction::decode(andi_x1_x0_2047);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 2047);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_negative_imm() {
+                    let andi_x1_x0_neg2048 = 0x80007093;
+                    let decoded = RiscVInstruction::decode(andi_x1_x0_neg2048);
+
+                    match decoded {
+                        RiscVInstruction::Andi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, -2048);
+                        }
+                        _ => panic!("Expected ANDI instruction"),
+                    }
+                }
+            }
         }
 
         mod jalr {
@@ -905,6 +1055,60 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", ori_max), "ori x31, x31, 2047");
+            }
+        }
+
+        mod andi {
+            use super::*;
+
+            #[test]
+            fn positive_immediate() {
+                let andi = RiscVInstruction::Andi {
+                    rd: 1,
+                    rs1: 2,
+                    imm: 100,
+                };
+                assert_eq!(format!("{}", andi), "andi x1, x2, 100");
+            }
+
+            #[test]
+            fn negative_immediate() {
+                let andi = RiscVInstruction::Andi {
+                    rd: 0,
+                    rs1: 1,
+                    imm: -4,
+                };
+                assert_eq!(format!("{}", andi), "andi x0, x1, -4");
+            }
+
+            #[test]
+            fn zero_immediate() {
+                let andi = RiscVInstruction::Andi {
+                    rd: 31,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", andi), "andi x31, x0, 0");
+            }
+
+            #[test]
+            fn min_values() {
+                let andi_min = RiscVInstruction::Andi {
+                    rd: 0,
+                    rs1: 0,
+                    imm: -2048,
+                };
+                assert_eq!(format!("{}", andi_min), "andi x0, x0, -2048");
+            }
+
+            #[test]
+            fn max_values() {
+                let andi_max = RiscVInstruction::Andi {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", andi_max), "andi x31, x31, 2047");
             }
         }
 
