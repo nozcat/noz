@@ -102,6 +102,18 @@ pub enum RiscVInstruction {
     /// If `rd = x0`, the return address is discarded (simple jump).
     Jalr { rd: u8, rs1: u8, imm: i16 },
 
+    /// Environment Call instruction (RV32I base instruction set)
+    ///
+    /// Transfers control to the operating system to handle a system call.
+    /// This instruction has no operands and is encoded as a specific system instruction.
+    Ecall,
+
+    /// Environment Break instruction (RV32I base instruction set)
+    ///
+    /// Transfers control to a debugger or trap handler.
+    /// This instruction has no operands and is encoded as a specific system instruction.
+    Ebreak,
+
     /// Unsupported instruction
     ///
     /// Contains the raw 32-bit instruction word for debugging purposes.
@@ -156,6 +168,12 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
+            RiscVInstruction::Ecall => {
+                write!(f, "ecall")
+            }
+            RiscVInstruction::Ebreak => {
+                write!(f, "ebreak")
+            }
             RiscVInstruction::Unsupported(opcode) => {
                 write!(f, "unsupported(0x{:08x})", opcode)
             }
@@ -186,6 +204,11 @@ const LH_FUNCT3: u8 = 0x1;
 const LW_FUNCT3: u8 = 0x2;
 const LBU_FUNCT3: u8 = 0x4;
 const LHU_FUNCT3: u8 = 0x5;
+
+const SYSTEM_OPCODE: u32 = 0x73;
+const SYSTEM_FUNCT3: u32 = 0x0;
+const ECALL_IMM: u32 = 0x0;
+const EBREAK_IMM: u32 = 0x1;
 
 const OPCODE_MASK: u32 = 0x7f;
 const FUNCT3_MASK: u32 = 0x7000;
@@ -283,6 +306,27 @@ impl RiscVInstruction {
                     LBU_FUNCT3 => RiscVInstruction::Lbu { rd, rs1, imm },
                     LHU_FUNCT3 => RiscVInstruction::Lhu { rd, rs1, imm },
                     _ => RiscVInstruction::Unsupported(word),
+                }
+            }
+            SYSTEM_OPCODE => {
+                let funct3 = (word & FUNCT3_MASK) >> FUNCT3_SHIFT;
+                if funct3 == SYSTEM_FUNCT3 {
+                    let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
+                    let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                    let imm = (word & IMM_I_MASK) >> IMM_I_SHIFT;
+
+                    // ECALL and EBREAK require rd=0 and rs1=0
+                    if rd == 0 && rs1 == 0 {
+                        match imm {
+                            ECALL_IMM => RiscVInstruction::Ecall,
+                            EBREAK_IMM => RiscVInstruction::Ebreak,
+                            _ => RiscVInstruction::Unsupported(word),
+                        }
+                    } else {
+                        RiscVInstruction::Unsupported(word)
+                    }
+                } else {
+                    RiscVInstruction::Unsupported(word)
                 }
             }
             _ => RiscVInstruction::Unsupported(word),
@@ -2303,6 +2347,116 @@ mod tests {
             }
         }
 
+        mod ecall {
+            use super::*;
+
+            #[test]
+            fn basic() {
+                let ecall = 0x00000073;
+                let decoded = RiscVInstruction::decode(ecall);
+
+                match decoded {
+                    RiscVInstruction::Ecall => {}
+                    _ => panic!("Expected ECALL instruction"),
+                }
+            }
+
+            #[test]
+            fn with_correct_opcode_and_fields() {
+                // ECALL: opcode=0x73, funct3=0x0, rd=0, rs1=0, imm=0
+                let ecall = 0x00000073;
+                let decoded = RiscVInstruction::decode(ecall);
+
+                match decoded {
+                    RiscVInstruction::Ecall => {}
+                    _ => panic!("Expected ECALL instruction"),
+                }
+            }
+
+            #[test]
+            fn with_non_zero_rd_should_be_unsupported() {
+                // ECALL with rd=1 should be unsupported
+                let invalid_ecall = 0x00000073 | (1 << 7);
+                let decoded = RiscVInstruction::decode(invalid_ecall);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, invalid_ecall);
+                    }
+                    _ => panic!("Expected unsupported instruction"),
+                }
+            }
+
+            #[test]
+            fn with_non_zero_rs1_should_be_unsupported() {
+                // ECALL with rs1=1 should be unsupported
+                let invalid_ecall = 0x00000073 | (1 << 15);
+                let decoded = RiscVInstruction::decode(invalid_ecall);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, invalid_ecall);
+                    }
+                    _ => panic!("Expected unsupported instruction"),
+                }
+            }
+        }
+
+        mod ebreak {
+            use super::*;
+
+            #[test]
+            fn basic() {
+                let ebreak = 0x00100073;
+                let decoded = RiscVInstruction::decode(ebreak);
+
+                match decoded {
+                    RiscVInstruction::Ebreak => {}
+                    _ => panic!("Expected EBREAK instruction"),
+                }
+            }
+
+            #[test]
+            fn with_correct_opcode_and_fields() {
+                // EBREAK: opcode=0x73, funct3=0x0, rd=0, rs1=0, imm=1
+                let ebreak = 0x00100073;
+                let decoded = RiscVInstruction::decode(ebreak);
+
+                match decoded {
+                    RiscVInstruction::Ebreak => {}
+                    _ => panic!("Expected EBREAK instruction"),
+                }
+            }
+
+            #[test]
+            fn with_non_zero_rd_should_be_unsupported() {
+                // EBREAK with rd=1 should be unsupported
+                let invalid_ebreak = 0x00100073 | (1 << 7);
+                let decoded = RiscVInstruction::decode(invalid_ebreak);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, invalid_ebreak);
+                    }
+                    _ => panic!("Expected unsupported instruction"),
+                }
+            }
+
+            #[test]
+            fn with_non_zero_rs1_should_be_unsupported() {
+                // EBREAK with rs1=1 should be unsupported
+                let invalid_ebreak = 0x00100073 | (1 << 15);
+                let decoded = RiscVInstruction::decode(invalid_ebreak);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, invalid_ebreak);
+                    }
+                    _ => panic!("Expected unsupported instruction"),
+                }
+            }
+        }
+
         mod unsupported {
             use super::*;
 
@@ -2381,6 +2535,34 @@ mod tests {
                         assert_eq!(word, 0x0031b083);
                     }
                     _ => panic!("Expected unsupported instruction for LOAD with invalid funct3"),
+                }
+            }
+
+            #[test]
+            fn system_invalid_imm() {
+                // SYSTEM instruction with invalid imm value (neither 0 for ECALL nor 1 for EBREAK)
+                let system_invalid_imm = 0x00200073; // imm=2
+                let decoded = RiscVInstruction::decode(system_invalid_imm);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, 0x00200073);
+                    }
+                    _ => panic!("Expected unsupported instruction for SYSTEM with invalid imm"),
+                }
+            }
+
+            #[test]
+            fn system_invalid_funct3() {
+                // SYSTEM instruction with invalid funct3 (not 0)
+                let system_invalid_funct3 = 0x00001073; // funct3=1
+                let decoded = RiscVInstruction::decode(system_invalid_funct3);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, 0x00001073);
+                    }
+                    _ => panic!("Expected unsupported instruction for SYSTEM with invalid funct3"),
                 }
             }
         }
@@ -3166,6 +3348,26 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", jalr_max), "jalr x31, x31, 2047");
+            }
+        }
+
+        mod ecall {
+            use super::*;
+
+            #[test]
+            fn basic() {
+                let ecall = RiscVInstruction::Ecall;
+                assert_eq!(format!("{}", ecall), "ecall");
+            }
+        }
+
+        mod ebreak {
+            use super::*;
+
+            #[test]
+            fn basic() {
+                let ebreak = RiscVInstruction::Ebreak;
+                assert_eq!(format!("{}", ebreak), "ebreak");
             }
         }
 
