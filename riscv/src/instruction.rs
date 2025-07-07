@@ -18,6 +18,12 @@ pub enum RiscVInstruction {
     /// Performs 32-bit arithmetic addition with overflow wrapping.
     Add { rd: u8, rs1: u8, rs2: u8 },
 
+    /// Subtract instruction (RV32I base instruction set)
+    ///
+    /// Subtracts the value in register `rs2` from register `rs1` and stores the result in `rd`.
+    /// Performs 32-bit arithmetic subtraction with overflow wrapping.
+    Sub { rd: u8, rs1: u8, rs2: u8 },
+
     /// Add Immediate instruction (RV32I base instruction set)
     ///
     /// Adds the immediate value to register `rs1` and stores the result in `rd`.
@@ -132,6 +138,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Add { rd, rs1, rs2 } => {
                 write!(f, "add x{}, x{}, x{}", rd, rs1, rs2)
             }
+            RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                write!(f, "sub x{}, x{}, x{}", rd, rs1, rs2)
+            }
             RiscVInstruction::Addi { rd, rs1, imm } => {
                 write!(f, "addi x{}, x{}, {}", rd, rs1, imm)
             }
@@ -193,6 +202,7 @@ impl fmt::Display for RiscVInstruction {
 const REG_OPCODE: u32 = 0x33;
 const ADD_FUNCT3: u8 = 0x0;
 const ADD_FUNCT7: u32 = 0x00;
+const SUB_FUNCT7: u32 = 0x20;
 
 const IMM_OPCODE: u32 = 0x13;
 const ADDI_FUNCT3: u8 = 0x0;
@@ -258,6 +268,8 @@ impl RiscVInstruction {
                     ADD_FUNCT3 => {
                         if funct7 == ADD_FUNCT7 {
                             RiscVInstruction::Add { rd, rs1, rs2 }
+                        } else if funct7 == SUB_FUNCT7 {
+                            RiscVInstruction::Sub { rd, rs1, rs2 }
                         } else {
                             RiscVInstruction::Unsupported(word)
                         }
@@ -510,6 +522,147 @@ mod tests {
                             assert_eq!(word, 0x203100b3);
                         }
                         _ => panic!("Expected unsupported instruction"),
+                    }
+                }
+            }
+
+            mod sub {
+                use super::*;
+
+                #[test]
+                fn basic() {
+                    let sub_x1_x2_x3 = 0x403100b3;
+                    let decoded = RiscVInstruction::decode(sub_x1_x2_x3);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 3);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rd() {
+                    let sub_x0_x1_x2 = 0x40208033;
+                    let decoded = RiscVInstruction::decode(sub_x0_x1_x2);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let sub_x31_x1_x2 = 0x40208033 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(sub_x31_x1_x2);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let sub_x1_x0_x2 = 0x40200033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(sub_x1_x0_x2);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let sub_x1_x31_x2 = 0x402f8033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(sub_x1_x31_x2);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(rs2, 2);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs2() {
+                    let sub_x1_x2_x0 = 0x40010033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(sub_x1_x2_x0);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 0);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs2() {
+                    let sub_x1_x2_x31 = 0x41f10033 | (1 << 7);
+                    let decoded = RiscVInstruction::decode(sub_x1_x2_x31);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 31);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn all_max_values() {
+                    let sub_x31_x31_x31 = 0x41ff8fb3;
+                    let decoded = RiscVInstruction::decode(sub_x31_x31_x31);
+
+                    match decoded {
+                        RiscVInstruction::Sub { rd, rs1, rs2 } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(rs2, 31);
+                        }
+                        _ => panic!("Expected SUB instruction"),
+                    }
+                }
+
+                #[test]
+                fn invalid_funct7_should_be_unsupported() {
+                    // SUB with invalid funct7 (0x00 instead of 0x20)
+                    let invalid_sub = 0x003100b3;
+                    let decoded = RiscVInstruction::decode(invalid_sub);
+
+                    match decoded {
+                        RiscVInstruction::Add { rd, rs1, rs2 } => {
+                            // This should decode as ADD, not SUB
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(rs2, 3);
+                        }
+                        _ => panic!("Expected ADD instruction (not SUB)"),
                     }
                 }
             }
@@ -2850,6 +3003,60 @@ mod tests {
                     rs2: 7,
                 };
                 assert_eq!(format!("{}", add_same), "add x7, x7, x7");
+            }
+        }
+
+        mod sub {
+            use super::*;
+
+            #[test]
+            fn basic() {
+                let sub = RiscVInstruction::Sub {
+                    rd: 1,
+                    rs1: 2,
+                    rs2: 3,
+                };
+                assert_eq!(format!("{}", sub), "sub x1, x2, x3");
+            }
+
+            #[test]
+            fn min_values() {
+                let sub_min = RiscVInstruction::Sub {
+                    rd: 0,
+                    rs1: 0,
+                    rs2: 0,
+                };
+                assert_eq!(format!("{}", sub_min), "sub x0, x0, x0");
+            }
+
+            #[test]
+            fn max_values() {
+                let sub_max = RiscVInstruction::Sub {
+                    rd: 31,
+                    rs1: 31,
+                    rs2: 31,
+                };
+                assert_eq!(format!("{}", sub_max), "sub x31, x31, x31");
+            }
+
+            #[test]
+            fn mixed_registers() {
+                let sub_mixed = RiscVInstruction::Sub {
+                    rd: 5,
+                    rs1: 10,
+                    rs2: 15,
+                };
+                assert_eq!(format!("{}", sub_mixed), "sub x5, x10, x15");
+            }
+
+            #[test]
+            fn same_registers() {
+                let sub_same = RiscVInstruction::Sub {
+                    rd: 7,
+                    rs1: 7,
+                    rs2: 7,
+                };
+                assert_eq!(format!("{}", sub_same), "sub x7, x7, x7");
             }
         }
 
