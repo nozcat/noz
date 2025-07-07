@@ -1,4 +1,3 @@
-
 use crate::instruction::RiscVInstruction;
 
 #[test]
