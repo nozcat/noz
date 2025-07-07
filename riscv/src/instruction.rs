@@ -1,8 +1,26 @@
 use std::fmt;
 
+/// RISC-V instruction representation for 32-bit IM (Integer + Multiplication) extension.
+///
+/// This implementation specifically targets RV32IM, which includes:
+/// - **RV32I**: Base integer instruction set (arithmetic, load/store, branch, jump)
+/// - **RV32M**: Standard extension for integer multiplication and division
+///
+/// ## Architecture
+/// - **32-bit RISC-V**: All operations are 32-bit width
+/// - **Register set**: X0-X31 (32 general-purpose registers)
+/// - **Memory**: 32-bit addressing space
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RiscVInstruction {
+    /// Jump and Link Register instruction (RV32I base instruction set)
+    ///
+    /// Jumps to address `rs1 + imm` and saves return address in `rd`.
+    /// If `rd = x0`, the return address is discarded (simple jump).
     Jalr { rd: u8, rs1: u8, imm: i16 },
+
+    /// Unsupported instruction
+    ///
+    /// Contains the raw 32-bit instruction word for debugging purposes.
     Unsupported(u32),
 }
 
@@ -34,6 +52,11 @@ pub const RS1_SHIFT: u32 = 15;
 pub const IMM_I_SHIFT: u32 = 20;
 
 impl RiscVInstruction {
+    /// Decode a 32-bit instruction word into a RiscVInstruction
+    ///
+    /// # Arguments
+    ///
+    /// * `word` - The 32-bit instruction word to decode
     pub fn decode(word: u32) -> RiscVInstruction {
         let opcode = word & OPCODE_MASK;
 
