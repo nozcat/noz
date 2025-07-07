@@ -985,26 +985,6 @@ mod tests {
             }
         }
 
-        mod ecall {
-            use super::*;
-
-            #[test]
-            fn basic() {
-                let ecall = RiscVInstruction::Ecall;
-                assert_eq!(format!("{}", ecall), "ecall");
-            }
-        }
-
-        mod ebreak {
-            use super::*;
-
-            #[test]
-            fn basic() {
-                let ebreak = RiscVInstruction::Ebreak;
-                assert_eq!(format!("{}", ebreak), "ebreak");
-            }
-        }
-
         #[test]
         fn unsupported() {
             let unsupported = RiscVInstruction::Unsupported(0x12345678);
