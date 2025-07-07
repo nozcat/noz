@@ -18,6 +18,12 @@ pub enum RiscVInstruction {
     /// If `rs1 = x0`, this effectively loads the immediate value into `rd`.
     Addi { rd: u8, rs1: u8, imm: i16 },
 
+    /// XOR Immediate instruction (RV32I base instruction set)
+    ///
+    /// Performs bitwise XOR between register `rs1` and the immediate value,
+    /// storing the result in `rd`.
+    Xori { rd: u8, rs1: u8, imm: i16 },
+
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
@@ -36,6 +42,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Addi { rd, rs1, imm } => {
                 write!(f, "addi x{}, x{}, {}", rd, rs1, imm)
             }
+            RiscVInstruction::Xori { rd, rs1, imm } => {
+                write!(f, "xori x{}, x{}, {}", rd, rs1, imm)
+            }
             RiscVInstruction::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr x{}, x{}, {}", rd, rs1, imm)
             }
@@ -46,8 +55,9 @@ impl fmt::Display for RiscVInstruction {
     }
 }
 
-const ADDI_OPCODE: u32 = 0x13;
+const IMM_OPCODE: u32 = 0x13;
 const ADDI_FUNCT3: u32 = 0x0;
+const XORI_FUNCT3: u32 = 0x4;
 
 const JALR_OPCODE: u32 = 0x67;
 const JALR_FUNCT3: u32 = 0x0;
@@ -73,16 +83,16 @@ impl RiscVInstruction {
         let opcode = word & OPCODE_MASK;
 
         match opcode {
-            ADDI_OPCODE => {
+            IMM_OPCODE => {
                 let funct3 = (word & FUNCT3_MASK) >> FUNCT3_SHIFT;
-                if funct3 == ADDI_FUNCT3 {
-                    let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
-                    let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
-                    let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
+                let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
+                let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
 
-                    RiscVInstruction::Addi { rd, rs1, imm }
-                } else {
-                    RiscVInstruction::Unsupported(word)
+                match funct3 {
+                    ADDI_FUNCT3 => RiscVInstruction::Addi { rd, rs1, imm },
+                    XORI_FUNCT3 => RiscVInstruction::Xori { rd, rs1, imm },
+                    _ => RiscVInstruction::Unsupported(word),
                 }
             }
             JALR_OPCODE => {
@@ -109,141 +119,284 @@ mod tests {
     mod decode {
         use super::*;
 
-        mod addi {
+        mod immediate_instructions {
             use super::*;
 
-            #[test]
-            fn basic() {
-                let addi_x1_x2_100 = 0x06410093;
-                let decoded = RiscVInstruction::decode(addi_x1_x2_100);
+            mod addi {
+                use super::*;
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 1);
-                        assert_eq!(rs1, 2);
-                        assert_eq!(imm, 100);
+                #[test]
+                fn basic() {
+                    let addi_x1_x2_100 = 0x06410093;
+                    let decoded = RiscVInstruction::decode(addi_x1_x2_100);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 100);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
+                }
+
+                #[test]
+                fn min_rd() {
+                    let addi_x0_x1_0 = 0x00008013;
+                    let decoded = RiscVInstruction::decode(addi_x0_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rd() {
+                    let addi_x31_x1_0 = 0x00008013 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(addi_x31_x1_0);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_rs1() {
+                    let addi_x1_x0_0 = 0x00000093;
+                    let decoded = RiscVInstruction::decode(addi_x1_x0_0);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_rs1() {
+                    let addi_x1_x31_0 = 0x000f8093;
+                    let decoded = RiscVInstruction::decode(addi_x1_x31_0);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn negative_imm() {
+                    let addi_x0_x1_neg4 = 0xffc08013;
+                    let decoded = RiscVInstruction::decode(addi_x0_x1_neg4);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, -4);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn zero_imm() {
+                    let addi_x1_x2_0 = 0x00010093;
+                    let decoded = RiscVInstruction::decode(addi_x1_x2_0);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn max_positive_imm() {
+                    let addi_x1_x0_2047 = 0x7ff00093;
+                    let decoded = RiscVInstruction::decode(addi_x1_x0_2047);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 2047);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
+                }
+
+                #[test]
+                fn min_negative_imm() {
+                    let addi_x1_x0_neg2048 = 0x80000093;
+                    let decoded = RiscVInstruction::decode(addi_x1_x0_neg2048);
+
+                    match decoded {
+                        RiscVInstruction::Addi { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, -2048);
+                        }
+                        _ => panic!("Expected ADDI instruction"),
+                    }
                 }
             }
 
-            #[test]
-            fn min_rd() {
-                let addi_x0_x1_0 = 0x00008013;
-                let decoded = RiscVInstruction::decode(addi_x0_x1_0);
+            mod xori {
+                use super::*;
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 0);
-                        assert_eq!(rs1, 1);
-                        assert_eq!(imm, 0);
+                #[test]
+                fn basic() {
+                    let xori_x1_x2_100 = 0x06414093;
+                    let decoded = RiscVInstruction::decode(xori_x1_x2_100);
+
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 100);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
                 }
-            }
 
-            #[test]
-            fn max_rd() {
-                let addi_x31_x1_0 = 0x00008013 | (31 << 7);
-                let decoded = RiscVInstruction::decode(addi_x31_x1_0);
+                #[test]
+                fn min_rd() {
+                    let xori_x0_x1_0 = 0x0000c013;
+                    let decoded = RiscVInstruction::decode(xori_x0_x1_0);
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 31);
-                        assert_eq!(rs1, 1);
-                        assert_eq!(imm, 0);
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
                 }
-            }
 
-            #[test]
-            fn min_rs1() {
-                let addi_x1_x0_0 = 0x00000093;
-                let decoded = RiscVInstruction::decode(addi_x1_x0_0);
+                #[test]
+                fn max_rd() {
+                    let xori_x31_x1_0 = 0x0000c013 | (31 << 7);
+                    let decoded = RiscVInstruction::decode(xori_x31_x1_0);
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 1);
-                        assert_eq!(rs1, 0);
-                        assert_eq!(imm, 0);
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 31);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
                 }
-            }
 
-            #[test]
-            fn max_rs1() {
-                let addi_x1_x31_0 = 0x000f8093;
-                let decoded = RiscVInstruction::decode(addi_x1_x31_0);
+                #[test]
+                fn min_rs1() {
+                    let xori_x1_x0_0 = 0x00004093;
+                    let decoded = RiscVInstruction::decode(xori_x1_x0_0);
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 1);
-                        assert_eq!(rs1, 31);
-                        assert_eq!(imm, 0);
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
                 }
-            }
 
-            #[test]
-            fn negative_imm() {
-                let addi_x0_x1_neg4 = 0xffc08013;
-                let decoded = RiscVInstruction::decode(addi_x0_x1_neg4);
+                #[test]
+                fn max_rs1() {
+                    let xori_x1_x31_0 = 0x000fc093;
+                    let decoded = RiscVInstruction::decode(xori_x1_x31_0);
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 0);
-                        assert_eq!(rs1, 1);
-                        assert_eq!(imm, -4);
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 31);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
                 }
-            }
 
-            #[test]
-            fn zero_imm() {
-                let addi_x1_x2_0 = 0x00010093;
-                let decoded = RiscVInstruction::decode(addi_x1_x2_0);
+                #[test]
+                fn negative_imm() {
+                    let xori_x0_x1_neg4 = 0xffc0c013;
+                    let decoded = RiscVInstruction::decode(xori_x0_x1_neg4);
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 1);
-                        assert_eq!(rs1, 2);
-                        assert_eq!(imm, 0);
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 0);
+                            assert_eq!(rs1, 1);
+                            assert_eq!(imm, -4);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
                 }
-            }
 
-            #[test]
-            fn max_positive_imm() {
-                let addi_x1_x0_2047 = 0x7ff00093;
-                let decoded = RiscVInstruction::decode(addi_x1_x0_2047);
+                #[test]
+                fn zero_imm() {
+                    let xori_x1_x2_0 = 0x00014093;
+                    let decoded = RiscVInstruction::decode(xori_x1_x2_0);
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 1);
-                        assert_eq!(rs1, 0);
-                        assert_eq!(imm, 2047);
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 2);
+                            assert_eq!(imm, 0);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
                 }
-            }
 
-            #[test]
-            fn min_negative_imm() {
-                let addi_x1_x0_neg2048 = 0x80000093;
-                let decoded = RiscVInstruction::decode(addi_x1_x0_neg2048);
+                #[test]
+                fn max_positive_imm() {
+                    let xori_x1_x0_2047 = 0x7ff04093;
+                    let decoded = RiscVInstruction::decode(xori_x1_x0_2047);
 
-                match decoded {
-                    RiscVInstruction::Addi { rd, rs1, imm } => {
-                        assert_eq!(rd, 1);
-                        assert_eq!(rs1, 0);
-                        assert_eq!(imm, -2048);
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, 2047);
+                        }
+                        _ => panic!("Expected XORI instruction"),
                     }
-                    _ => panic!("Expected ADDI instruction"),
+                }
+
+                #[test]
+                fn min_negative_imm() {
+                    let xori_x1_x0_neg2048 = 0x80004093;
+                    let decoded = RiscVInstruction::decode(xori_x1_x0_neg2048);
+
+                    match decoded {
+                        RiscVInstruction::Xori { rd, rs1, imm } => {
+                            assert_eq!(rd, 1);
+                            assert_eq!(rs1, 0);
+                            assert_eq!(imm, -2048);
+                        }
+                        _ => panic!("Expected XORI instruction"),
+                    }
                 }
             }
         }
@@ -411,15 +564,17 @@ mod tests {
             }
 
             #[test]
-            fn unsupported_addi_funct3() {
-                let addi_with_invalid_funct3 = 0x00411093;
-                let decoded = RiscVInstruction::decode(addi_with_invalid_funct3);
+            fn unsupported_immediate_funct3() {
+                let imm_with_invalid_funct3 = 0x00411093;
+                let decoded = RiscVInstruction::decode(imm_with_invalid_funct3);
 
                 match decoded {
                     RiscVInstruction::Unsupported(word) => {
                         assert_eq!(word, 0x00411093);
                     }
-                    _ => panic!("Expected unsupported instruction for ADDI with invalid funct3"),
+                    _ => panic!(
+                        "Expected unsupported instruction for immediate instruction with invalid funct3"
+                    ),
                 }
             }
 
@@ -492,6 +647,60 @@ mod tests {
                     imm: 2047,
                 };
                 assert_eq!(format!("{}", addi_max), "addi x31, x31, 2047");
+            }
+        }
+
+        mod xori {
+            use super::*;
+
+            #[test]
+            fn positive_immediate() {
+                let xori = RiscVInstruction::Xori {
+                    rd: 1,
+                    rs1: 2,
+                    imm: 100,
+                };
+                assert_eq!(format!("{}", xori), "xori x1, x2, 100");
+            }
+
+            #[test]
+            fn negative_immediate() {
+                let xori = RiscVInstruction::Xori {
+                    rd: 0,
+                    rs1: 1,
+                    imm: -4,
+                };
+                assert_eq!(format!("{}", xori), "xori x0, x1, -4");
+            }
+
+            #[test]
+            fn zero_immediate() {
+                let xori = RiscVInstruction::Xori {
+                    rd: 31,
+                    rs1: 0,
+                    imm: 0,
+                };
+                assert_eq!(format!("{}", xori), "xori x31, x0, 0");
+            }
+
+            #[test]
+            fn min_values() {
+                let xori_min = RiscVInstruction::Xori {
+                    rd: 0,
+                    rs1: 0,
+                    imm: -2048,
+                };
+                assert_eq!(format!("{}", xori_min), "xori x0, x0, -2048");
+            }
+
+            #[test]
+            fn max_values() {
+                let xori_max = RiscVInstruction::Xori {
+                    rd: 31,
+                    rs1: 31,
+                    imm: 2047,
+                };
+                assert_eq!(format!("{}", xori_max), "xori x31, x31, 2047");
             }
         }
 
