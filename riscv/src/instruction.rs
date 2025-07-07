@@ -282,19 +282,6 @@ mod tests {
             }
 
             #[test]
-            fn unsupported_func3() {
-                let jalr_with_invalid_funct3 = 0x004110e7;
-                let decoded = RiscVInstruction::decode(jalr_with_invalid_funct3);
-
-                match decoded {
-                    RiscVInstruction::Unsupported(word) => {
-                        assert_eq!(word, 0x004110e7);
-                    }
-                    _ => panic!("Expected unsupported instruction for JALR with invalid funct3"),
-                }
-            }
-
-            #[test]
             fn min_rd() {
                 let jalr_x0 = 0x00008067;
                 let decoded = RiscVInstruction::decode(jalr_x0);
@@ -407,16 +394,46 @@ mod tests {
             }
         }
 
-        #[test]
-        fn unsupported() {
-            let unsupported = 0x12345678;
-            let decoded = RiscVInstruction::decode(unsupported);
+        mod unsupported {
+            use super::*;
 
-            match decoded {
-                RiscVInstruction::Unsupported(word) => {
-                    assert_eq!(word, 0x12345678);
+            #[test]
+            fn unsupported_opcode() {
+                let unsupported = 0x12345678;
+                let decoded = RiscVInstruction::decode(unsupported);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, 0x12345678);
+                    }
+                    _ => panic!("Expected unsupported instruction"),
                 }
-                _ => panic!("Expected unsupported instruction"),
+            }
+
+            #[test]
+            fn unsupported_addi_funct3() {
+                let addi_with_invalid_funct3 = 0x00411093;
+                let decoded = RiscVInstruction::decode(addi_with_invalid_funct3);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, 0x00411093);
+                    }
+                    _ => panic!("Expected unsupported instruction for ADDI with invalid funct3"),
+                }
+            }
+
+            #[test]
+            fn unsupported_jalr_funct3() {
+                let jalr_with_invalid_funct3 = 0x004110e7;
+                let decoded = RiscVInstruction::decode(jalr_with_invalid_funct3);
+
+                match decoded {
+                    RiscVInstruction::Unsupported(word) => {
+                        assert_eq!(word, 0x004110e7);
+                    }
+                    _ => panic!("Expected unsupported instruction for JALR with invalid funct3"),
+                }
             }
         }
     }
