@@ -281,18 +281,6 @@ impl RiscVInstruction {
                     _ => unreachable!("All 3-bit funct3 values are handled above"),
                 }
             }
-            JALR_OPCODE => {
-                let funct3 = (word & FUNCT3_MASK) >> FUNCT3_SHIFT;
-                if funct3 == JALR_FUNCT3 {
-                    let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
-                    let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
-                    let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
-
-                    RiscVInstruction::Jalr { rd, rs1, imm }
-                } else {
-                    RiscVInstruction::Unsupported(word)
-                }
-            }
             LOAD_OPCODE => {
                 let funct3 = (((word & FUNCT3_MASK) >> FUNCT3_SHIFT) & 0x7) as u8;
                 let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
@@ -306,6 +294,18 @@ impl RiscVInstruction {
                     LBU_FUNCT3 => RiscVInstruction::Lbu { rd, rs1, imm },
                     LHU_FUNCT3 => RiscVInstruction::Lhu { rd, rs1, imm },
                     _ => RiscVInstruction::Unsupported(word),
+                }
+            }
+            JALR_OPCODE => {
+                let funct3 = (word & FUNCT3_MASK) >> FUNCT3_SHIFT;
+                if funct3 == JALR_FUNCT3 {
+                    let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
+                    let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                    let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
+
+                    RiscVInstruction::Jalr { rd, rs1, imm }
+                } else {
+                    RiscVInstruction::Unsupported(word)
                 }
             }
             SYSTEM_OPCODE => {
