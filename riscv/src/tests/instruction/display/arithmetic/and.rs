@@ -43,3 +43,14 @@ fn mixed_values() {
     let display = format!("{}", and_instruction);
     assert_eq!(display, "and x10, x5, x20");
 }
+
+#[test]
+fn same_registers() {
+    let and_instruction = RiscVInstruction::And {
+        rd: 7,
+        rs1: 7,
+        rs2: 7,
+    };
+    let display = format!("{}", and_instruction);
+    assert_eq!(display, "and x7, x7, x7");
+}
