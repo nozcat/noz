@@ -16,121 +16,121 @@ pub enum RiscVInstruction {
     ///
     /// Adds the values in registers `rs1` and `rs2` and stores the result in `rd`.
     /// Performs 32-bit arithmetic addition with overflow wrapping.
-    Add { rd: u8, rs1: u8, rs2: u8 },
+    Add { rd: u32, rs1: u32, rs2: u32 },
 
     /// Subtract instruction (RV32I base instruction set)
     ///
     /// Subtracts the value in register `rs2` from register `rs1` and stores the result in `rd`.
     /// Performs 32-bit arithmetic subtraction with overflow wrapping.
-    Sub { rd: u8, rs1: u8, rs2: u8 },
+    Sub { rd: u32, rs1: u32, rs2: u32 },
 
     /// XOR instruction (RV32I base instruction set)
     ///
     /// Performs bitwise XOR between registers `rs1` and `rs2` and stores the result in `rd`.
     /// Each bit in the result is 1 if the corresponding bits in the operands are different.
-    Xor { rd: u8, rs1: u8, rs2: u8 },
+    Xor { rd: u32, rs1: u32, rs2: u32 },
 
     /// OR instruction (RV32I base instruction set)
     ///
     /// Performs bitwise OR between registers `rs1` and `rs2` and stores the result in `rd`.
     /// Each bit in the result is 1 if either corresponding bit in the operands is 1.
-    Or { rd: u8, rs1: u8, rs2: u8 },
+    Or { rd: u32, rs1: u32, rs2: u32 },
 
     /// AND instruction (RV32I base instruction set)
     ///
     /// Performs bitwise AND between registers `rs1` and `rs2` and stores the result in `rd`.
     /// Each bit in the result is 1 if both corresponding bits in the operands are 1.
-    And { rd: u8, rs1: u8, rs2: u8 },
+    And { rd: u32, rs1: u32, rs2: u32 },
 
     /// Add Immediate instruction (RV32I base instruction set)
     ///
     /// Adds the immediate value to register `rs1` and stores the result in `rd`.
     /// If `rs1 = x0`, this effectively loads the immediate value into `rd`.
-    Addi { rd: u8, rs1: u8, imm: i16 },
+    Addi { rd: u32, rs1: u32, imm: i16 },
 
     /// XOR Immediate instruction (RV32I base instruction set)
     ///
     /// Performs bitwise XOR between register `rs1` and the immediate value,
     /// storing the result in `rd`.
-    Xori { rd: u8, rs1: u8, imm: i16 },
+    Xori { rd: u32, rs1: u32, imm: i16 },
 
     /// OR Immediate instruction (RV32I base instruction set)
     ///
     /// Performs bitwise OR between register `rs1` and the immediate value,
     /// storing the result in `rd`.
-    Ori { rd: u8, rs1: u8, imm: i16 },
+    Ori { rd: u32, rs1: u32, imm: i16 },
 
     /// AND Immediate instruction (RV32I base instruction set)
     ///
     /// Performs bitwise AND between register `rs1` and the immediate value,
     /// storing the result in `rd`.
-    Andi { rd: u8, rs1: u8, imm: i16 },
+    Andi { rd: u32, rs1: u32, imm: i16 },
 
     /// Shift Left Logical Immediate instruction (RV32I base instruction set)
     ///
     /// Shifts register `rs1` left by the immediate value (0-31 bits) and
     /// stores the result in `rd`. Zero bits are shifted in from the right.
-    Slli { rd: u8, rs1: u8, imm: i16 },
+    Slli { rd: u32, rs1: u32, imm: i16 },
 
     /// Shift Right Logical Immediate instruction (RV32I base instruction set)
     ///
     /// Shifts register `rs1` right by the immediate value (0-31 bits) and
     /// stores the result in `rd`. Zero bits are shifted in from the left.
-    Srli { rd: u8, rs1: u8, imm: i16 },
+    Srli { rd: u32, rs1: u32, imm: i16 },
 
     /// Shift Right Arithmetic Immediate instruction (RV32I base instruction set)
     ///
     /// Shifts register `rs1` right by the immediate value (0-31 bits) and
     /// stores the result in `rd`. Sign bits are shifted in from the left.
-    Srai { rd: u8, rs1: u8, imm: i16 },
+    Srai { rd: u32, rs1: u32, imm: i16 },
 
     /// Set Less Than Immediate instruction (RV32I base instruction set)
     ///
     /// Compares register `rs1` with the immediate value using signed comparison.
     /// Sets `rd` to 1 if `rs1` < imm, otherwise sets `rd` to 0.
-    Slti { rd: u8, rs1: u8, imm: i16 },
+    Slti { rd: u32, rs1: u32, imm: i16 },
 
     /// Set Less Than Immediate Unsigned instruction (RV32I base instruction set)
     ///
     /// Compares register `rs1` with the immediate value using unsigned comparison.
     /// Sets `rd` to 1 if `rs1` < imm (unsigned), otherwise sets `rd` to 0.
-    Sltiu { rd: u8, rs1: u8, imm: i16 },
+    Sltiu { rd: u32, rs1: u32, imm: i16 },
 
     /// Load Byte instruction (RV32I base instruction set)
     ///
     /// Loads an 8-bit value from memory address `rs1 + imm` and sign-extends it to 32 bits,
     /// storing the result in `rd`.
-    Lb { rd: u8, rs1: u8, imm: i16 },
+    Lb { rd: u32, rs1: u32, imm: i16 },
 
     /// Load Halfword instruction (RV32I base instruction set)
     ///
     /// Loads a 16-bit value from memory address `rs1 + imm` and sign-extends it to 32 bits,
     /// storing the result in `rd`.
-    Lh { rd: u8, rs1: u8, imm: i16 },
+    Lh { rd: u32, rs1: u32, imm: i16 },
 
     /// Load Word instruction (RV32I base instruction set)
     ///
     /// Loads a 32-bit value from memory address `rs1 + imm` and stores it in `rd`.
     /// No sign extension is needed as it's a full 32-bit load.
-    Lw { rd: u8, rs1: u8, imm: i16 },
+    Lw { rd: u32, rs1: u32, imm: i16 },
 
     /// Load Byte Unsigned instruction (RV32I base instruction set)
     ///
     /// Loads an 8-bit value from memory address `rs1 + imm` and zero-extends it to 32 bits,
     /// storing the result in `rd`.
-    Lbu { rd: u8, rs1: u8, imm: i16 },
+    Lbu { rd: u32, rs1: u32, imm: i16 },
 
     /// Load Halfword Unsigned instruction (RV32I base instruction set)
     ///
     /// Loads a 16-bit value from memory address `rs1 + imm` and zero-extends it to 32 bits,
     /// storing the result in `rd`.
-    Lhu { rd: u8, rs1: u8, imm: i16 },
+    Lhu { rd: u32, rs1: u32, imm: i16 },
 
     /// Jump and Link Register instruction (RV32I base instruction set)
     ///
     /// Jumps to address `rs1 + imm` and saves return address in `rd`.
     /// If `rd = x0`, the return address is discarded (simple jump).
-    Jalr { rd: u8, rs1: u8, imm: i16 },
+    Jalr { rd: u32, rs1: u32, imm: i16 },
 
     /// Environment Call instruction (RV32I base instruction set)
     ///
@@ -293,9 +293,9 @@ impl RiscVInstruction {
             REG_OPCODE => {
                 let funct3 = (((word & FUNCT3_MASK) >> FUNCT3_SHIFT) & 0x7) as u8;
                 let funct7 = (word & FUNCT7_MASK) >> FUNCT7_SHIFT;
-                let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
-                let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
-                let rs2 = ((word & RS2_MASK) >> RS2_SHIFT) as u8;
+                let rd = (word & RD_MASK) >> RD_SHIFT;
+                let rs1 = (word & RS1_MASK) >> RS1_SHIFT;
+                let rs2 = (word & RS2_MASK) >> RS2_SHIFT;
 
                 match funct3 {
                     ADD_FUNCT3 => {
@@ -333,8 +333,8 @@ impl RiscVInstruction {
             }
             IMM_OPCODE => {
                 let funct3 = (((word & FUNCT3_MASK) >> FUNCT3_SHIFT) & 0x7) as u8;
-                let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
-                let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                let rd = (word & RD_MASK) >> RD_SHIFT;
+                let rs1 = (word & RS1_MASK) >> RS1_SHIFT;
                 let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
                 let funct7 = (word & FUNCT7_MASK) >> FUNCT7_SHIFT;
 
@@ -381,8 +381,8 @@ impl RiscVInstruction {
             }
             LOAD_OPCODE => {
                 let funct3 = (((word & FUNCT3_MASK) >> FUNCT3_SHIFT) & 0x7) as u8;
-                let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
-                let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                let rd = (word & RD_MASK) >> RD_SHIFT;
+                let rs1 = (word & RS1_MASK) >> RS1_SHIFT;
                 let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
 
                 match funct3 {
@@ -397,8 +397,8 @@ impl RiscVInstruction {
             JALR_OPCODE => {
                 let funct3 = (word & FUNCT3_MASK) >> FUNCT3_SHIFT;
                 if funct3 == JALR_FUNCT3 {
-                    let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
-                    let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                    let rd = (word & RD_MASK) >> RD_SHIFT;
+                    let rs1 = (word & RS1_MASK) >> RS1_SHIFT;
                     let imm = ((word & IMM_I_MASK) as i32 >> IMM_I_SHIFT) as i16;
 
                     RiscVInstruction::Jalr { rd, rs1, imm }
@@ -409,8 +409,8 @@ impl RiscVInstruction {
             SYSTEM_OPCODE => {
                 let funct3 = (word & FUNCT3_MASK) >> FUNCT3_SHIFT;
                 if funct3 == SYSTEM_FUNCT3 {
-                    let rd = ((word & RD_MASK) >> RD_SHIFT) as u8;
-                    let rs1 = ((word & RS1_MASK) >> RS1_SHIFT) as u8;
+                    let rd = (word & RD_MASK) >> RD_SHIFT;
+                    let rs1 = (word & RS1_MASK) >> RS1_SHIFT;
                     let imm = (word & IMM_I_MASK) >> IMM_I_SHIFT;
 
                     // ECALL and EBREAK require rd=0 and rs1=0
