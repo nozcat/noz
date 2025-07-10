@@ -36,6 +36,12 @@ pub enum RiscVInstruction {
     /// Each bit in the result is 1 if either corresponding bit in the operands is 1.
     Or { rd: u8, rs1: u8, rs2: u8 },
 
+    /// AND instruction (RV32I base instruction set)
+    ///
+    /// Performs bitwise AND between registers `rs1` and `rs2` and stores the result in `rd`.
+    /// Each bit in the result is 1 if both corresponding bits in the operands are 1.
+    And { rd: u8, rs1: u8, rs2: u8 },
+
     /// Add Immediate instruction (RV32I base instruction set)
     ///
     /// Adds the immediate value to register `rs1` and stores the result in `rd`.
@@ -159,6 +165,9 @@ impl fmt::Display for RiscVInstruction {
             RiscVInstruction::Or { rd, rs1, rs2 } => {
                 write!(f, "or x{}, x{}, x{}", rd, rs1, rs2)
             }
+            RiscVInstruction::And { rd, rs1, rs2 } => {
+                write!(f, "and x{}, x{}, x{}", rd, rs1, rs2)
+            }
             RiscVInstruction::Addi { rd, rs1, imm } => {
                 write!(f, "addi x{}, x{}, {}", rd, rs1, imm)
             }
@@ -225,6 +234,8 @@ const XOR_FUNCT3: u8 = 0x4;
 const XOR_FUNCT7: u32 = 0x00;
 const OR_FUNCT3: u8 = 0x6;
 const OR_FUNCT7: u32 = 0x00;
+const AND_FUNCT3: u8 = 0x7;
+const AND_FUNCT7: u32 = 0x00;
 
 const IMM_OPCODE: u32 = 0x13;
 const ADDI_FUNCT3: u8 = 0x0;
@@ -306,6 +317,13 @@ impl RiscVInstruction {
                     OR_FUNCT3 => {
                         if funct7 == OR_FUNCT7 {
                             RiscVInstruction::Or { rd, rs1, rs2 }
+                        } else {
+                            RiscVInstruction::Unsupported(word)
+                        }
+                    }
+                    AND_FUNCT3 => {
+                        if funct7 == AND_FUNCT7 {
+                            RiscVInstruction::And { rd, rs1, rs2 }
                         } else {
                             RiscVInstruction::Unsupported(word)
                         }
