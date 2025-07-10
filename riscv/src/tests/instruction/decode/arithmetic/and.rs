@@ -133,3 +133,18 @@ fn invalid_funct7_should_be_unsupported() {
         _ => panic!("Expected unsupported instruction"),
     }
 }
+
+#[test]
+fn invalid_funct3_should_be_unsupported() {
+    // REG_OPCODE (0x33) with invalid funct3 (0x1 instead of 0x7 for AND)
+    // This tests the catch-all case in the REG_OPCODE match
+    let invalid_funct3 = 0x00109033; // funct3=0x1, funct7=0x00
+    let decoded = RiscVInstruction::decode(invalid_funct3);
+
+    match decoded {
+        RiscVInstruction::Unsupported(word) => {
+            assert_eq!(word, 0x00109033);
+        }
+        _ => panic!("Expected unsupported instruction for invalid funct3"),
+    }
+}
