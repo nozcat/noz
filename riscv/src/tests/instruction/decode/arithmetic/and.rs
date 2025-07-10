@@ -2,6 +2,9 @@ use crate::instruction::RiscVInstruction;
 
 #[test]
 fn basic() {
+    // 0x003170b3 = AND x1, x2, x3 instruction encoding
+    // Binary: 0000000_00011_00010_111_00001_0110011
+    // funct7=0x00, rs2=3, rs1=2, funct3=0x7, rd=1, opcode=0x33
     let and_x1_x2_x3 = 0x003170b3;
     let decoded = RiscVInstruction::decode(and_x1_x2_x3);
 
